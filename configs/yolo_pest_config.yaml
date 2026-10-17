@@ -1,0 +1,18 @@
+# YOLO26 Pest Detector Configuration
+
+model_settings:
+  model_name: "YOLO26n-Pest"
+  weights_path: "models/pest/yolo26n_ip102_pest.pt"
+  confidence_threshold: 0.25
+  iou_threshold: 0.45
+  image_size: 640
+  device: "cpu" # Options: "cpu", "cuda", "0"
+
+dataset_configuration:
+  ip102_config_file: "configs/ip102_yolo_dataset.yaml"
+  classes_mapping_file: "configs/pest_classes.yaml"
+
+output_settings:
+  save_annotated_images: true
+  save_json_results: true
+  output_directory: "data/processed/pest_detections"

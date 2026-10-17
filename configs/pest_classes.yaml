@@ -1,0 +1,41 @@
+# IP102 Official Pest Class Mappings
+# Source Dataset: IP102 Insect Pest Benchmark
+
+source_dataset: "IP102 Benchmark Dataset for Insect Pest Recognition & Detection"
+annotation_format: "YOLO TXT (class_id x_center y_center width height normalized 0.0-1.0)"
+
+classes:
+  - ip102_class_id: 25
+    official_name: "aphids"
+    display_name: "Aphids"
+    mapped_category: "aphid"
+    crop_relevance: "Feeds on tomato sap and vectors plant viruses"
+    verification_status: "VERIFIED"
+
+  - ip102_class_id: 24
+    official_name: "army worm"
+    display_name: "Armyworm"
+    mapped_category: "armyworm"
+    crop_relevance: "Larvae defoliate tomato leaves and bore into fruit"
+    verification_status: "VERIFIED"
+
+  - ip102_class_id: 38
+    official_name: "flea beetle"
+    display_name: "Flea Beetle"
+    mapped_category: "beetle"
+    crop_relevance: "Adults chew small shot-holes in tomato foliage"
+    verification_status: "VERIFIED"
+
+  - ip102_class_id: 19
+    official_name: "black cutworm"
+    display_name: "Black Cutworm"
+    mapped_category: "cutworm"
+    crop_relevance: "Larvae sever young tomato seedling stems at ground level"
+    verification_status: "VERIFIED"
+
+  - ip102_class_id: 72
+    official_name: "Trialeurodes vaporariorum"
+    display_name: "Greenhouse Whitefly"
+    mapped_category: "whitefly"
+    crop_relevance: "Greenhouse pest vectoring tomato viruses"
+    verification_status: "UNVERIFIED_BOUNDING_BOX_SPARSITY"

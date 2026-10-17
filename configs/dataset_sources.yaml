@@ -1,0 +1,34 @@
+# Dataset Source Registry
+
+datasets:
+  pest_detection:
+    name: "IP102 Agricultural Pest Benchmark"
+    source: "https://github.com/xpwu95/IP102"
+    task: "Pest Detection & Identification"
+    data_type: "Field RGB Imagery with Bounding Boxes"
+    is_drone_data: false
+    status: "VERIFIED"
+
+  disease_classification:
+    name: "PlantVillage Benchmark Dataset (Tomato Subset)"
+    source: "https://github.com/spMohanty/PlantVillage-Dataset"
+    task: "Plant Disease Classification"
+    data_type: "Leaf Close-up RGB Imagery"
+    is_drone_data: false
+    status: "VERIFIED"
+
+  multiview_analysis:
+    name: "TomatoMAP (Tomato Multi-Angle Perception Dataset)"
+    source: "https://doi.org/10.5447/ipk/2025/14"
+    task: "Multi-View Canopy & Fruit Analysis"
+    data_type: "Multi-Angle Ground & Canopy Camera Views"
+    is_drone_data: false
+    status: "VERIFIED"
+
+  drone_aerial:
+    name: "Verified UAV Tomato Dataset (TBD)"
+    source: "TBD"
+    task: "Drone Aerial Field Analysis"
+    data_type: "UAV Aerial Field Imagery"
+    is_drone_data: true
+    status: "UNVERIFIED_PENDING_DATASET_SELECTION"

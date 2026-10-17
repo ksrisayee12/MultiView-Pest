@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  background-color: #F5FAFF;
+  color: #1F2937;
+}
+
+/* Institutional Card Styling */
+.gov-card {
+  @apply bg-white border border-[#D7E3F0] rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200;
+}
+
+.gov-button-primary {
+  @apply bg-[#1565C0] hover:bg-[#0D47A1] text-white font-medium px-4 py-2 rounded-lg transition-colors duration-150 flex items-center justify-center gap-2 shadow-sm;
+}
+
+.gov-button-secondary {
+  @apply bg-[#E3F2FD] hover:bg-[#BBDEFB] text-[#0D47A1] font-medium px-4 py-2 rounded-lg transition-colors duration-150 flex items-center justify-center gap-2;
+}

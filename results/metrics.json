@@ -1,0 +1,26 @@
+{
+  "dataset": "PlantVillage (4 Tomato Classes Synthetic Baseline Evaluation)",
+  "disclaimer": "Metrics represent deterministic synthetic evaluation prior to full GPU training.",
+  "evaluations_by_condition": {
+    "clean": {
+      "total_samples": 4,
+      "opencv_accuracy": 0.0,
+      "fusion_accuracy": 100.0
+    },
+    "blurred": {
+      "total_samples": 4,
+      "opencv_accuracy": 0.0,
+      "fusion_accuracy": 100.0
+    },
+    "darkened": {
+      "total_samples": 4,
+      "opencv_accuracy": 0.0,
+      "fusion_accuracy": 100.0
+    },
+    "noisy": {
+      "total_samples": 4,
+      "opencv_accuracy": 0.0,
+      "fusion_accuracy": 100.0
+    }
+  }
+}

@@ -1,0 +1,26 @@
+# Plant Health & Severity Threshold Configuration
+
+severity_levels:
+  LOW:
+    pest_count_threshold: 2
+    affected_area_percentage_max: 10.0
+    description: "Minor isolated pest or early leaf spots detected."
+    color_code: "#22C55E"
+
+  MEDIUM:
+    pest_count_threshold: 5
+    affected_area_percentage_max: 25.0
+    description: "Moderate pest presence or noticeable disease lesions."
+    color_code: "#EAB308"
+
+  HIGH:
+    pest_count_threshold: 10
+    affected_area_percentage_max: 50.0
+    description: "High pest density or spreading foliage infection."
+    color_code: "#F97316"
+
+  CRITICAL:
+    pest_count_threshold: 11
+    affected_area_percentage_min: 50.1
+    description: "Severe infestation or widespread plant defoliation risk."
+    color_code: "#EF4444"

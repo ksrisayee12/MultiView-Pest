@@ -1,0 +1,32 @@
+# Management & Prevention Lookup Table
+
+recommendations:
+  bacterial_spot:
+    category: "Bacterial Foliar Disease"
+    management: "Apply copper-based bactericides during early symptom onset."
+    prevention: "Use certified disease-free seeds, avoid overhead irrigation, rotate crop every 2 years."
+
+  early_blight:
+    category: "Fungal Foliar Disease"
+    management: "Apply approved fungicides (e.g., chlorothalonil or copper fungicides)."
+    prevention: "Prune lower infected leaves, maintain row spacing for airflow, mulch soil to prevent splash."
+
+  late_blight:
+    category: "Severe Oomycete Pathogen"
+    management: "Apply systemic fungicides immediately; remove and destroy severely infected plants."
+    prevention: "Monitor weather for high humidity, plant resistant tomato varieties, destroy volunteer plants."
+
+  tomato_yellow_leaf_curl_virus:
+    category: "Viral Infection (Vector-borne)"
+    management: "Control whitefly vectors using yellow sticky traps or insecticidal soap."
+    prevention: "Use insect-proof netting in nurseries, rogue out infected plants immediately."
+
+  aphid:
+    category: "Sap-Sucking Insect Pest"
+    management: "Spray neem oil or insecticidal soap; introduce beneficial predators like ladybugs."
+    prevention: "Use reflective mulches, monitor leaf undersides weekly."
+
+  armyworm:
+    category: "Chewing Caterpillar Pest"
+    management: "Apply Bacillus thuringiensis (Bt) or bio-pesticides on young larvae."
+    prevention: "Install pheromone traps, clear weeds around field borders."

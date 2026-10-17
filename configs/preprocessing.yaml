@@ -1,0 +1,37 @@
+# Digital Image Processing (DIP) Pipeline Configuration
+
+image_constraints:
+  allowed_extensions: [".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tif", ".tiff"]
+  target_width: 640
+  target_height: 640
+  preserve_aspect_ratio: true
+  pad_color: [0, 0, 0]
+
+pipeline_steps:
+  resize:
+    enabled: true
+    preserve_aspect_ratio: true
+
+  noise_reduction:
+    enabled: true
+    method: "gaussian_blur" # Options: "gaussian_blur", "median_blur"
+    kernel_size: 3
+    sigma: 1.0
+
+  contrast_enhancement:
+    enabled: true
+    method: "clahe" # Options: "clahe", "histogram_equalization"
+    clip_limit: 2.0
+    tile_grid_size: [8, 8]
+
+  color_processing:
+    enabled: true
+    target_color_space: "RGB" # Options: "RGB", "BGR", "HSV", "LAB"
+
+  normalization:
+    enabled: true
+    normalize_range: [0.0, 1.0]
+
+  sharpening:
+    enabled: false
+    kernel_strength: 1.0

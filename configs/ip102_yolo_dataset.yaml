@@ -1,0 +1,15 @@
+# IP102 YOLO Dataset Configuration Template for Ultralytics YOLO26
+# Path configuration for training on verified IP102 bounding box dataset
+
+path: data/raw/pest # dataset root dir
+train: images/train
+val: images/val
+test: images/test
+
+# Mapped class names dictionary
+names:
+  0: aphids
+  1: army worm
+  2: flea beetle
+  3: black cutworm
+  4: Trialeurodes vaporariorum

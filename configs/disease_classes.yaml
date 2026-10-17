@@ -1,0 +1,31 @@
+# PlantVillage Tomato Disease Class Mappings
+# Source Dataset: PlantVillage Benchmark Dataset (Tomato Subset)
+
+source_dataset: "PlantVillage"
+target_crop: "Tomato (Solanum lycopersicum)"
+
+classes:
+  - project_label: "healthy"
+    official_plantvillage_label: "Tomato___healthy"
+    display_name: "Healthy Tomato Foliage"
+    health_status: "HEALTHY"
+
+  - project_label: "bacterial_spot"
+    official_plantvillage_label: "Tomato___Bacterial_spot"
+    display_name: "Bacterial Spot"
+    health_status: "DISEASED"
+
+  - project_label: "early_blight"
+    official_plantvillage_label: "Tomato___Early_blight"
+    display_name: "Early Blight (Alternaria solani)"
+    health_status: "DISEASED"
+
+  - project_label: "late_blight"
+    official_plantvillage_label: "Tomato___Late_blight"
+    display_name: "Late Blight (Phytophthora infestans)"
+    health_status: "DISEASED"
+
+  - project_label: "tomato_yellow_leaf_curl_virus"
+    official_plantvillage_label: "Tomato___Tomato_Yellow_Leaf_Curl_Virus"
+    display_name: "Tomato Yellow Leaf Curl Virus (TYLCV)"
+    health_status: "DISEASED"
