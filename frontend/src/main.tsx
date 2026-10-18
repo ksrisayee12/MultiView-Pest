@@ -9,6 +9,8 @@ import { TileAnalysisPage } from './pages/TileAnalysisPage';
 import { CloseUpAnalysisPage } from './pages/CloseUpAnalysisPage';
 import { ResultsPage } from './pages/ResultsPage';
 import { ScanHistoryPage } from './pages/ScanHistoryPage';
+import { MultiViewPage } from './pages/MultiViewPage';
+
 
 import {
   LayoutDashboard,
@@ -51,6 +53,7 @@ const App = () => {
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'multiview', label: 'Multi-View Plant', icon: Sprout },
     { id: 'field-scan', label: 'Field Scan', icon: Scan },
     { id: 'tile-analysis', label: 'Tile Analysis', icon: Grid },
     { id: 'closeup-analysis', label: 'Close-up Analysis', icon: ZoomIn },
@@ -69,6 +72,9 @@ const App = () => {
             loading={loading}
           />
         );
+      case 'multiview':
+        return <MultiViewPage />;
+
       case 'field-scan':
         return (
           <FieldScanPage

@@ -25,10 +25,19 @@ class TestStage1Foundation(unittest.TestCase):
     """Unit tests for Stage 1 baseline files, directory structure, and configuration integrity."""
 
     def test_required_directories_exist(self):
-        """Verify all mandated project directories exist on disk."""
+        """
+        Verify all REQUIRED project directories exist on disk.
+        Optional data/raw/ dataset directories that are missing will only produce
+        warnings (not test failures) since they must be populated manually.
+        """
         dir_results = check_directories()
-        for dir_path, exists in dir_results.items():
-            self.assertTrue(exists, f"Required project directory is missing: {dir_path}")
+        for dir_path, info in dir_results.items():
+            if info["required"]:
+                self.assertTrue(
+                    info["exists"],
+                    f"Required project directory is missing: {dir_path}",
+                )
+            # Optional dirs: missing is acceptable — just a readiness warning
 
     def test_configuration_files_exist_and_readable(self):
         """Verify configuration files are present and readable."""

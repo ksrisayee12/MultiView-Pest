@@ -1,4 +1,7 @@
 # MultiView AgriHealth Backend Dependencies
+# Installed versions verified with Python 3.11.9 on Windows
+# Install ONLY inside .venv: .\.venv\Scripts\pip install -r requirements.txt
+
 fastapi>=0.100.0
 uvicorn>=0.22.0
 opencv-python>=4.8.0
@@ -10,3 +13,10 @@ pymongo>=4.4.0
 requests>=2.31.0
 ultralytics>=8.0.0
 
+# Notes:
+# - ultralytics pulls in torch, torchvision, and matplotlib as dependencies
+# - Use opencv-python (NOT opencv-contrib-python or opencv-python-headless at the same time)
+# - For GPU acceleration: install torch with CUDA separately from https://pytorch.org/get-started/locally/
+#   and then reinstall ultralytics. Do not run pip install torch automatically — choose the
+#   correct CUDA version for your GPU.
+# - PyTorch CPU is included automatically via ultralytics on Windows.

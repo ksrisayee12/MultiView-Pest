@@ -20,13 +20,19 @@ DATA_DIR = BASE_DIR / "data"
 
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tif", ".tiff"}
 
+# Directories that MUST exist for the app to function
 REQUIRED_DIRS = [
+    DATA_DIR / "processed",
+    DATA_DIR / "samples",
+]
+
+# Optional dataset directories — missing = WARNING, not failure
+# These are filled manually by the developer after downloading datasets.
+OPTIONAL_DATA_DIRS = [
     DATA_DIR / "raw" / "pest",
     DATA_DIR / "raw" / "disease",
     DATA_DIR / "raw" / "multiview",
     DATA_DIR / "raw" / "drone",
-    DATA_DIR / "processed",
-    DATA_DIR / "samples",
 ]
 
 REQUIRED_CONFIGS = [
@@ -57,7 +63,10 @@ def check_directories() -> dict:
     results = {}
     for d in REQUIRED_DIRS:
         exists = d.exists() and d.is_dir()
-        results[str(d.relative_to(BASE_DIR))] = exists
+        results[str(d.relative_to(BASE_DIR))] = {"exists": exists, "required": True}
+    for d in OPTIONAL_DATA_DIRS:
+        exists = d.exists() and d.is_dir()
+        results[str(d.relative_to(BASE_DIR))] = {"exists": exists, "required": False}
     return results
 
 
@@ -112,10 +121,21 @@ def run_validation_report() -> bool:
 
     # 1. Directories Check
     dir_status = check_directories()
-    all_dirs_ok = all(dir_status.values())
+
+    required_dirs_ok = all(
+        info["exists"] for info in dir_status.values() if info["required"]
+    )
+
     print("\n[1] Directory Structure Check:")
-    for path_str, ok in dir_status.items():
-        status_str = "EXISTS" if ok else "MISSING"
+    for path_str, info in dir_status.items():
+        exists = info["exists"]
+        required = info["required"]
+        if exists:
+            status_str = "EXISTS"
+        elif required:
+            status_str = "MISSING (REQUIRED)"
+        else:
+            status_str = "MISSING (optional — populate manually with dataset)"
         print(f"  - {path_str:<25}: [{status_str}]")
 
     # 2. Config Files Check
@@ -127,15 +147,25 @@ def run_validation_report() -> bool:
 
     # 3. Image Datasets Scan
     print("\n[3] Image Dataset File Scan:")
-    for d in REQUIRED_DIRS:
+    all_scan_dirs = [d for d in REQUIRED_DIRS] + [d for d in OPTIONAL_DATA_DIRS]
+    for d in all_scan_dirs:
         scan = scan_images_in_dir(d)
         rel_path = str(d.relative_to(BASE_DIR))
         print(f"  - {rel_path:<25}: Total: {scan['total']} | Valid: {scan['valid']} | Corrupt: {scan['corrupt']}")
 
     print("\n" + "=" * 60)
-    passed = all_dirs_ok and all_configs_ok
+    # Only fail on required directories and config files, not optional dataset dirs
+    passed = required_dirs_ok and all_configs_ok
     if passed:
-        print(" RESULT: PASS - Workspace structure and configurations are valid.")
+        optional_missing = sum(
+            1 for info in dir_status.values() if not info["exists"] and not info["required"]
+        )
+        if optional_missing > 0:
+            print(f" RESULT: PASS with {optional_missing} dataset warning(s).")
+            print(" Required structure and configurations are valid.")
+            print(" Optional data/raw/ directories are empty — populate with datasets before training.")
+        else:
+            print(" RESULT: PASS - Workspace structure and configurations are valid.")
     else:
         print(" RESULT: FAIL - Some required directories or configs are missing.")
     print("=" * 60)

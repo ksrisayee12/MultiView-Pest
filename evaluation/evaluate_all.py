@@ -1,3 +1,29 @@
+"""
+evaluation/evaluate_all.py
+
+SYNTHETIC PIPELINE EVALUATION — NOT REAL MODEL ACCURACY
+
+This script tests the OpenCV DIP pipeline and fusion engine using
+SYNTHETICALLY GENERATED leaf images and SIMULATED YOLO predictions.
+
+IMPORTANT DISCLAIMERS:
+  - The "YOLO prediction" used here (simulated_yolo_pred = label) is the
+    ground-truth class label fed directly as if the model predicted it correctly.
+    This does NOT measure real YOLO model accuracy.
+  - The fusion accuracy reported here measures whether the fusion rules produce
+    the expected output when given perfect YOLO predictions. It is a software
+    behavior test, not a real-world disease detection accuracy metric.
+  - Results in results/metrics.json from this script must NEVER be cited as
+    proof of real-world disease detection performance.
+  - Real model accuracy can only be measured by running a trained model on
+    a genuine held-out test split with real annotated images.
+
+This synthetic evaluation is useful for:
+  - Testing that the OpenCV DIP pipeline responds correctly to visual changes
+  - Testing fusion rule logic with known inputs
+  - Regression testing pipeline stability across code changes
+"""
+
 import os
 import cv2
 import json
@@ -49,9 +75,11 @@ def run_evaluation(output_dir: str = "results") -> Dict[str, Any]:
             if dip_res["visual_status"] == expected_status:
                 correct_opencv += 1
 
-            # Fusion Simulation
-            # Simulated YOLO prediction (or true label)
-            simulated_yolo_pred = label
+            # Fusion Simulation (SYNTHETIC)
+            # NOTE: simulated_yolo_pred is set to the ground-truth label here.
+            # This means the fusion evaluation assumes a perfect YOLO prediction.
+            # This tests fusion rule correctness, NOT model accuracy.
+            simulated_yolo_pred = label  # <-- SIMULATED, not a real model output
             fusion_res = evaluate_tile_fusion(simulated_yolo_pred, 0.90, dip_res)
             
             if label == "healthy" and fusion_res["fusion_status"] == "HEALTHY":
@@ -68,9 +96,16 @@ def run_evaluation(output_dir: str = "results") -> Dict[str, Any]:
         }
 
     report = {
-        "dataset": "PlantVillage (4 Tomato Classes Synthetic Baseline Evaluation)",
-        "disclaimer": "Metrics represent deterministic synthetic evaluation prior to full GPU training.",
-        "evaluations_by_condition": eval_results
+        "evaluation_type": "SYNTHETIC_PIPELINE_TEST",
+        "dataset": "Synthetic (programmatically generated leaf images — not real plant data)",
+        "disclaimer": (
+            "SYNTHETIC EVALUATION ONLY. "
+            "YOLO predictions are simulated using ground-truth labels — this is NOT real model accuracy. "
+            "opencv_accuracy measures the DIP visual classifier on synthetic images. "
+            "fusion_accuracy measures fusion rules given perfect simulated YOLO inputs. "
+            "These numbers must not be cited as real-world disease detection performance."
+        ),
+        "evaluations_by_condition": eval_results,
     }
 
     report_path = os.path.join(output_dir, "metrics.json")

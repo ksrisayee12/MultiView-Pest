@@ -1,6 +1,7 @@
 {
-  "dataset": "PlantVillage (4 Tomato Classes Synthetic Baseline Evaluation)",
-  "disclaimer": "Metrics represent deterministic synthetic evaluation prior to full GPU training.",
+  "evaluation_type": "SYNTHETIC_PIPELINE_TEST",
+  "dataset": "Synthetic (programmatically generated leaf images \u2014 not real plant data)",
+  "disclaimer": "SYNTHETIC EVALUATION ONLY. YOLO predictions are simulated using ground-truth labels \u2014 this is NOT real model accuracy. opencv_accuracy measures the DIP visual classifier on synthetic images. fusion_accuracy measures fusion rules given perfect simulated YOLO inputs. These numbers must not be cited as real-world disease detection performance.",
   "evaluations_by_condition": {
     "clean": {
       "total_samples": 4,

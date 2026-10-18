@@ -1,0 +1,11 @@
+# MultiView AgriHealth — Development & Test Dependencies
+# Install into .venv only: .\.venv\Scripts\pip install -r requirements-dev.txt
+
+# Testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+httpx>=0.24.0       # For FastAPI TestClient async tests
+
+# Code quality (optional but recommended)
+# ruff>=0.1.0       # Linter (uncomment to use)
+# mypy>=1.5.0       # Type checker (uncomment to use)

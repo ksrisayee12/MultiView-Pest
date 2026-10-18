@@ -1,15 +1,78 @@
-﻿node_modules/
+# -----------------------------------------------
+# MultiView-AgriHealth — .gitignore
+# -----------------------------------------------
+
+# Python virtual environment
 .venv/
 venv/
+env/
+
+# Python bytecode and caches
 __pycache__/
 *.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Environment / secrets — NEVER commit
 .env
-.env.*
-.env.example
+.env.local
+.env.*.local
+# NOTE: .env.example IS committed (it has no real secrets)
+
+# Model weights — large binary files
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.engine
 backend/models/*.pt
+models/disease/*.pt
+models/pest/*.pt
+
+# Raw datasets — do not commit large data
 data/raw/*
-data/processed/*
 !data/raw/**/.gitkeep
-!data/processed/**/.gitkeep
+!data/raw/**/README.md
+
+# Processed outputs — generated files
+data/processed/*
+!data/processed/.gitkeep
+
+# Uploaded temporary files
+data/uploads/
+uploads/
+
+# YOLO training run artifacts
+runs/
+yolo_runs/
+wandb/
+
+# Jupyter notebook checkpoints
 .ipynb_checkpoints/
+
+# Results that contain synthetic / run-specific data
+# (keep results/metrics.json if it documents real evaluation)
+results/run_*/
+
+# Frontend build output
+frontend/dist/
+frontend/node_modules/
+
+# IDE / OS artifacts
 .DS_Store
+Thumbs.db
+.idea/
+.vscode/settings.json
+*.swp
+
+# Master prompt (local reference only)
+MultiView_AgriHealth_Antigravity_Master_Prompt.md
+
+# Pytest cache
+.pytest_cache/
+.coverage
+htmlcov/
+
+# MyPy cache
+.mypy_cache/
