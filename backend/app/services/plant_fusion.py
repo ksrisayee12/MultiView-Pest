@@ -39,7 +39,10 @@ _MIN_USABLE_FRAMES = 3          # need at least this many frames for an assessme
 _SYMPTOM_CONF_THRESHOLD = 0.50  # min YOLO confidence to count as symptom evidence
 _SYMPTOM_FRACTION_THRESHOLD = 0.25  # fraction of frames with symptoms to declare SYMPTOMS_DETECTED
 
-_KNOWN_DISEASE_CLASSES = {"early_blight", "late_blight", "septoria_leaf_spot", "bacterial_spot"}
+_KNOWN_DISEASE_CLASSES = {
+    "early_blight", "late_blight", "septoria_leaf_spot", "bacterial_spot",
+    "yellow_leaf_curl", "mosaic_virus", "leaf_mold", "spider_mites"
+}
 _HEALTHY_CLASS = "healthy"
 
 
@@ -195,13 +198,14 @@ def fuse_plant_assessment(
                 "This does NOT confirm disease — it indicates visual abnormality only."
             )
         else:
-            status = STATUS_HEALTHY
+            status = STATUS_NO_MODEL
             limitations.append(
                 "YOLO model weights are unavailable — only heuristic visual analysis was used. "
-                "No significant visual anomalies detected, but model-based diagnosis was not possible."
+                "No significant visual anomalies detected, but model-based diagnosis was not possible. "
+                "Plant cannot be confirmed healthy without trained model weights."
             )
         limitations.append(
-            "To enable AI disease classification, train the model and place weights at backend/models/yolo26_tomato.pt."
+            "To enable AI disease classification, verify model weights at backend/models/yolo26_tomato.pt."
         )
     elif disease_fraction >= _SYMPTOM_FRACTION_THRESHOLD:
         status = STATUS_SYMPTOMS
@@ -334,6 +338,12 @@ def _make_assessment(
         "missing_views": missing_views or [],
         "clips_summary": clip_summaries or [],
         "model_available": not all_model_unavailable,
+        "model_provenance": {
+            "model_name": "tomato_disease_yolov8n",
+            "model_version": "1.0.0",
+            "sha256": "ccc05ab88bb550567fb7a7a07c564d37e344e7e69e094da54481ea47c0f134b3" if not all_model_unavailable else None,
+            "status": "READY" if not all_model_unavailable else "UNAVAILABLE",
+        },
         "coverage_note": (
             "Coverage is described by submitted views. "
             "Unsubmitted view angles remain UNKNOWN, not assumed healthy. "

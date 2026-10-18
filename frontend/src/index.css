@@ -2,22 +2,50 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  margin: 0;
-  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  background-color: #F5FAFF;
-  color: #1F2937;
+@layer base {
+  body {
+    margin: 0;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    background-color: #F8FAF8;
+    color: #1A2E22;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
 }
 
-/* Institutional Card Styling */
-.gov-card {
-  @apply bg-white border border-[#D7E3F0] rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200;
+/* Premium Agronomic Product Styling */
+.agri-card {
+  @apply bg-white border border-[#E3EBE4] rounded-2xl shadow-[0_2px_8px_rgba(20,50,30,0.04)] hover:shadow-[0_4px_16px_rgba(20,50,30,0.08)] transition-all duration-200;
 }
 
-.gov-button-primary {
-  @apply bg-[#1565C0] hover:bg-[#0D47A1] text-white font-medium px-4 py-2 rounded-lg transition-colors duration-150 flex items-center justify-center gap-2 shadow-sm;
+.agri-card-elevated {
+  @apply bg-white border border-[#D5E2D7] rounded-2xl shadow-[0_4px_20px_rgba(20,50,30,0.08)];
 }
 
-.gov-button-secondary {
-  @apply bg-[#E3F2FD] hover:bg-[#BBDEFB] text-[#0D47A1] font-medium px-4 py-2 rounded-lg transition-colors duration-150 flex items-center justify-center gap-2;
+.agri-button-primary {
+  @apply bg-[#1B4332] hover:bg-[#133023] text-white font-semibold px-4 py-2 rounded-xl transition-all duration-150 flex items-center justify-center gap-2 shadow-sm active:scale-[0.99];
+}
+
+.agri-button-secondary {
+  @apply bg-[#EBF4ED] hover:bg-[#D8ECDD] text-[#1B4332] font-semibold px-4 py-2 rounded-xl transition-all duration-150 flex items-center justify-center gap-2;
+}
+
+.agri-button-danger {
+  @apply bg-red-50 hover:bg-red-100 text-red-700 font-semibold px-3 py-1.5 rounded-xl border border-red-200 transition-colors flex items-center justify-center gap-1.5;
+}
+
+/* Custom Scrollbar for Chat & Logs */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #F1F5F2;
+}
+::-webkit-scrollbar-thumb {
+  background: #C4D7C8;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #9DBFA4;
 }

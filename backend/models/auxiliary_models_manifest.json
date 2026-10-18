@@ -1,0 +1,29 @@
+{
+  "models": {
+    "leaf_severity_net": {
+      "file": "leaf_severity_net.pth",
+      "sha256": "38f9fd17ddf0a297aada7a42624f83122358e7356d7abd7f634e5a9f2f82c476",
+      "classes": [
+        "HEALTHY",
+        "MILD_CHLOROSIS",
+        "MODERATE_LESIONS",
+        "SEVERE_NECROSIS"
+      ],
+      "purpose": "Deep foliar health classification & continuous lesion % regression"
+    },
+    "pest_vector_net": {
+      "file": "pest_vector_net.pth",
+      "sha256": "7529ed10d7889eca8002baaa83ac000e0e4ffaa5f6dfe730db04f9415614c820",
+      "classes": [
+        "NONE",
+        "APHID",
+        "ARMYWORM",
+        "FLEA_BEETLE",
+        "CUTWORM",
+        "WHITEFLY"
+      ],
+      "purpose": "Insect vector identification driving disease transmission"
+    }
+  },
+  "trained_at": "2026-10-18 13:54:39 UTC"
+}

@@ -139,6 +139,13 @@ export interface PlantAssessment {
   missing_views: string[];
   clips_summary: ClipSummaryItem[];
   model_available: boolean;
+  model_provenance?: {
+    model_name?: string;
+    model_version?: string;
+    sha256?: string;
+    status?: string;
+  };
+  visual_localization?: any;
   coverage_note: string;
   limitations: string[];
   assessment_notes: string[];

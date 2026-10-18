@@ -15,12 +15,18 @@ import os
 import uuid
 import time
 import asyncio
+import json
+import hashlib
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 from concurrent.futures import ThreadPoolExecutor
 
 import cv2
 import numpy as np
 from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, UploadFile, status
+from fastapi.responses import PlainTextResponse
+
+from backend.app.services.report_generator import generate_markdown_report
 
 from backend.app.schemas.plant_session import (
     CreateSessionRequest,
@@ -125,6 +131,71 @@ async def get_plant_session(session_id: str):
     return session
 
 
+@router.delete("/plant-sessions")
+async def delete_plant_sessions(duplicates_only: bool = False):
+    """
+    Bulk delete sessions or remove duplicate sessions (keeping the highest quality / newest session per plant_id).
+    """
+    all_sessions = db_manager.list_plant_sessions(limit=1000)
+    if not all_sessions:
+        return {"message": "No sessions found to delete.", "deleted_count": 0, "deleted_sessions": []}
+
+    deleted_ids = []
+
+    if duplicates_only:
+        groups: Dict[str, List[Dict[str, Any]]] = {}
+        for s in all_sessions:
+            pid = str(s.get("plant_id", "UNKNOWN")).strip().upper()
+            groups.setdefault(pid, []).append(s)
+
+        for pid, sess_list in groups.items():
+            if len(sess_list) <= 1:
+                continue
+            # Sort: prioritize having an assessment, then more clips, then newer timestamp
+            sess_list.sort(
+                key=lambda x: (
+                    1 if x.get("assessment") else 0,
+                    len(x.get("clips", [])),
+                    x.get("created_at", 0)
+                ),
+                reverse=True
+            )
+            # The first item is kept, remaining are duplicates to delete
+            for s in sess_list[1:]:
+                sid = s["session_id"]
+                for clip in s.get("clips", []):
+                    fpath = clip.get("file_path")
+                    if fpath:
+                        cleanup_clip_file(fpath)
+                db_manager.delete_plant_session(sid)
+                if sid in _JOBS:
+                    del _JOBS[sid]
+                deleted_ids.append(sid)
+
+        return {
+            "message": f"Successfully removed {len(deleted_ids)} duplicate session(s).",
+            "deleted_count": len(deleted_ids),
+            "deleted_sessions": deleted_ids,
+        }
+    else:
+        for s in all_sessions:
+            sid = s["session_id"]
+            for clip in s.get("clips", []):
+                fpath = clip.get("file_path")
+                if fpath:
+                    cleanup_clip_file(fpath)
+            db_manager.delete_plant_session(sid)
+            if sid in _JOBS:
+                del _JOBS[sid]
+            deleted_ids.append(sid)
+
+        return {
+            "message": f"Successfully deleted all {len(deleted_ids)} sessions.",
+            "deleted_count": len(deleted_ids),
+            "deleted_sessions": deleted_ids,
+        }
+
+
 @router.delete("/plant-sessions/{session_id}")
 async def delete_plant_session(session_id: str):
     """
@@ -144,6 +215,64 @@ async def delete_plant_session(session_id: str):
         del _JOBS[session_id]
 
     return {"message": f"Session '{session_id}' deleted successfully.", "session_id": session_id}
+
+
+@router.get("/plant-sessions/{session_id}/localize")
+async def get_session_visual_localization(
+    session_id: str,
+    clip_id: Optional[str] = None,
+):
+    """
+    Returns high-resolution visual disease localization (annotated lesion bounding boxes,
+    infection intensity heatmap, and detected lesion region coordinates) for a specific session clip.
+    """
+    session = db_manager.get_plant_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found.")
+
+    clips = session.get("clips", [])
+    if not clips:
+        raise HTTPException(status_code=400, detail="No media clips found in this session.")
+
+    target_clip = None
+    if clip_id:
+        target_clip = next((c for c in clips if c.get("clip_id") == clip_id), None)
+    if not target_clip:
+        target_clip = clips[0]
+
+    fpath = target_clip.get("file_path")
+    if not fpath or not os.path.exists(fpath):
+        raise HTTPException(status_code=404, detail="Clip media file not found on disk.")
+
+    ext = Path(fpath).suffix.lower()
+    frame_img = None
+    if ext in {".jpg", ".jpeg", ".png", ".webp", ".bmp"}:
+        frame_img = cv2.imread(fpath)
+    else:
+        cap = cv2.VideoCapture(fpath)
+        if cap.isOpened():
+            ret, fr = cap.read()
+            if ret and fr is not None:
+                frame_img = fr
+            cap.release()
+
+    if frame_img is None:
+        raise HTTPException(status_code=500, detail="Could not decode frame from clip file.")
+
+    from backend.app.services.ensemble_engine import run_ensemble_assessment
+    report = run_ensemble_assessment(frame_img, crop_type=session.get("crop_type", "tomato"))
+
+    return {
+        "session_id": session_id,
+        "clip_id": target_clip.get("clip_id"),
+        "view_label": target_clip.get("view_label"),
+        "visual_localization": report.get("visual_localization"),
+        "primary_diagnosis": report.get("primary_diagnosis"),
+        "condition_key": report.get("condition_key"),
+        "severity_analysis": report.get("severity_analysis"),
+        "multi_model_consensus": report.get("multi_model_consensus"),
+    }
+
 
 
 # ---------------------------------------------------------------------------
@@ -216,6 +345,221 @@ async def upload_clip_to_session(
     }
 
 
+@router.post("/plant-sessions/{session_id}/media/batch", status_code=status.HTTP_201_CREATED)
+async def upload_batch_media_to_session(
+    session_id: str,
+    files: List[UploadFile] = File(...),
+    metadata: Optional[str] = Form(None),
+):
+    """
+    Upload multiple images or videos in a single batch request to a plant session.
+    Metadata can be a JSON string mapping filenames to view labels, e.g.:
+    {"leaf1.jpg": "front", "leaf2.jpg": "underside"}
+    Content hashes (SHA-256) prevent duplicate file ingestion.
+    """
+    session = db_manager.get_plant_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found.")
+
+    meta_map = {}
+    if metadata:
+        try:
+            meta_map = json.loads(metadata)
+        except Exception:
+            meta_map = {}
+
+    upload_dir = os.path.join("data", "uploads", session_id)
+    os.makedirs(upload_dir, exist_ok=True)
+
+    clips = session.get("clips", [])
+    existing_hashes = {c.get("content_hash") for c in clips if c.get("content_hash")}
+
+    added_clips = []
+    skipped_duplicates = []
+    rejected_files = []
+
+    valid_views = {"front", "back", "left", "right", "top", "underside", "unknown", "arbitrary"}
+
+    for upload in files:
+        fname = upload.filename or "uploaded_media.jpg"
+        ext = os.path.splitext(fname)[1].lower()
+
+        if ext not in _ALLOWED_VIDEO_EXTENSIONS:
+            rejected_files.append({"filename": fname, "reason": f"Unsupported extension '{ext}'"})
+            continue
+
+        content = await upload.read()
+        if len(content) > _MAX_VIDEO_BYTES:
+            rejected_files.append({"filename": fname, "reason": f"File exceeds max size {_MAX_VIDEO_BYTES//(1024*1024)}MB"})
+            continue
+
+        file_hash = hashlib.sha256(content).hexdigest()
+        if file_hash in existing_hashes:
+            skipped_duplicates.append({"filename": fname, "hash": file_hash})
+            continue
+
+        view_label = meta_map.get(fname, "unknown").strip().lower()
+        if view_label not in valid_views:
+            view_label = "unknown"
+
+        clip_id = f"clip_{uuid.uuid4().hex[:8]}"
+        saved_path = os.path.join(upload_dir, f"{clip_id}_{os.path.basename(fname)}")
+
+        with open(saved_path, "wb") as f:
+            f.write(content)
+
+        clip_meta = make_clip_meta(
+            clip_id=clip_id,
+            session_id=session_id,
+            original_filename=fname,
+            view_label=view_label,
+            file_path=saved_path,
+        )
+        clip_meta["content_hash"] = file_hash
+
+        clips.append(clip_meta)
+        existing_hashes.add(file_hash)
+        added_clips.append(clip_meta)
+
+    db_manager.update_plant_session(session_id, {"clips": clips, "updated_at": time.time()})
+    job = _get_or_create_job(session_id, session["plant_id"], len(clips))
+    job["clips_total"] = len(clips)
+
+    return {
+        "message": f"Processed {len(files)} files: {len(added_clips)} added, {len(skipped_duplicates)} duplicates skipped, {len(rejected_files)} rejected.",
+        "added_count": len(added_clips),
+        "added_clips": added_clips,
+        "skipped_duplicates": skipped_duplicates,
+        "rejected_files": rejected_files,
+        "session_id": session_id,
+    }
+
+
+@router.post("/plant-sessions/batch", status_code=status.HTTP_201_CREATED)
+async def create_multi_plant_batch(
+    background_tasks: BackgroundTasks,
+    files: List[UploadFile] = File(...),
+    batch_manifest: str = Form(...),
+):
+    """
+    Multi-Plant Batch Analysis Mode with Strict Boundary Isolation.
+    Accepts media files and a batch_manifest JSON string mapping filenames to:
+    {
+      "sample1.jpg": {"plant_id": "PLANT-001", "view_label": "front", "crop_type": "tomato"},
+      "sample2.jpg": {"plant_id": "PLANT-002", "view_label": "top", "crop_type": "tomato"}
+    }
+    Strict Isolation Guarantee:
+    - Files belonging to PLANT-001 are assigned only to session PLANT-001.
+    - Files belonging to PLANT-002 are assigned only to session PLANT-002.
+    - Evidence is never cross-fused between different plant IDs.
+    """
+    try:
+        manifest = json.loads(batch_manifest)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid batch_manifest JSON: {exc}")
+
+    # Group files by plant_id
+    plant_groups: Dict[str, Dict[str, Any]] = {}
+    for upload in files:
+        fname = upload.filename or "media.jpg"
+        meta = manifest.get(fname)
+        if not meta or not meta.get("plant_id"):
+            raise HTTPException(status_code=400, detail=f"Missing plant_id in manifest for file '{fname}'")
+
+        pid = meta["plant_id"].strip()
+        crop = meta.get("crop_type", "tomato").strip().lower()
+        view = meta.get("view_label", "unknown").strip().lower()
+
+        if pid not in plant_groups:
+            plant_groups[pid] = {"crop_type": crop, "items": []}
+        plant_groups[pid]["items"].append((upload, fname, view))
+
+    created_sessions = []
+
+    for pid, pdata in plant_groups.items():
+        session_id = f"sess_{uuid.uuid4().hex[:12]}"
+        now = time.time()
+        upload_dir = os.path.join("data", "uploads", session_id)
+        os.makedirs(upload_dir, exist_ok=True)
+
+        clips = []
+        for upload, fname, view in pdata["items"]:
+            content = await upload.read()
+            file_hash = hashlib.sha256(content).hexdigest()
+            clip_id = f"clip_{uuid.uuid4().hex[:8]}"
+            saved_path = os.path.join(upload_dir, f"{clip_id}_{os.path.basename(fname)}")
+
+            with open(saved_path, "wb") as f:
+                f.write(content)
+
+            clip_meta = make_clip_meta(
+                clip_id=clip_id,
+                session_id=session_id,
+                original_filename=fname,
+                view_label=view,
+                file_path=saved_path,
+            )
+            clip_meta["content_hash"] = file_hash
+            clips.append(clip_meta)
+
+        session_data = {
+            "session_id": session_id,
+            "plant_id": pid,
+            "crop_type": pdata["crop_type"],
+            "notes": f"Multi-plant batch ingestion for {pid}",
+            "status": "CREATED",
+            "created_at": now,
+            "updated_at": now,
+            "clips": clips,
+            "assessment": None,
+            "observation_count": 0,
+        }
+        db_manager.save_plant_session(session_data)
+        _get_or_create_job(session_id, pid, len(clips))
+
+        # Schedule async analysis for this isolated session
+        background_tasks.add_task(_run_analysis_sync, session_id)
+        created_sessions.append({
+            "session_id": session_id,
+            "plant_id": pid,
+            "clip_count": len(clips),
+            "status": "QUEUED",
+        })
+
+    return {
+        "message": f"Successfully created {len(created_sessions)} isolated plant sessions.",
+        "batch_count": len(created_sessions),
+        "sessions": created_sessions,
+    }
+
+
+@router.get("/plant-sessions/{session_id}/export")
+async def export_plant_session_report(session_id: str, format: str = "json"):
+    """
+    Export a comprehensive decision-support report for a plant session.
+    Supported formats: 'json', 'markdown'.
+    Includes model provenance, full observation summaries, and explicit disclaimers.
+    """
+    session = db_manager.get_plant_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found.")
+
+    if format.lower() == "markdown":
+        md_content = generate_markdown_report(session)
+        return PlainTextResponse(
+            content=md_content,
+            media_type="text/markdown",
+            headers={"Content-Disposition": f"attachment; filename=report_{session_id}.md"},
+        )
+
+    # Default JSON export
+    return {
+        "export_format": "json",
+        "exported_at": time.time(),
+        "session": session,
+    }
+
+
 # ---------------------------------------------------------------------------
 # Video Analysis Execution & Job Tracking
 # ---------------------------------------------------------------------------
@@ -282,6 +626,38 @@ def _run_analysis_sync(session_id: str):
         clips_meta=updated_clips,
         all_observations=all_observations,
     )
+
+    # Synthesize representative visual disease localization
+    try:
+        from backend.app.services.ensemble_engine import run_ensemble_assessment
+        chosen_clip = None
+        for c in updated_clips:
+            fpath = c.get("file_path")
+            if fpath and os.path.exists(fpath):
+                chosen_clip = c
+                break
+        
+        if chosen_clip:
+            fpath = chosen_clip.get("file_path")
+            ext = Path(fpath).suffix.lower()
+            frame_img = None
+            if ext in {".jpg", ".jpeg", ".png", ".webp", ".bmp"}:
+                frame_img = cv2.imread(fpath)
+            else:
+                cap = cv2.VideoCapture(fpath)
+                if cap.isOpened():
+                    ret, fr = cap.read()
+                    if ret and fr is not None:
+                        frame_img = fr
+                    cap.release()
+            
+            if frame_img is not None:
+                rep_report = run_ensemble_assessment(frame_img, crop_type=session.get("crop_type", "tomato"))
+                if "visual_localization" in rep_report:
+                    assessment["visual_localization"] = rep_report["visual_localization"]
+                    assessment["model_provenance"] = rep_report.get("model_provenance", assessment.get("model_provenance"))
+    except Exception as exc:
+        print(f"[PlantSessions] Visual localization error: {exc}")
 
     # Save to db
     db_manager.save_observations(session_id, all_observations)

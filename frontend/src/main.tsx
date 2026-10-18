@@ -10,7 +10,7 @@ import { CloseUpAnalysisPage } from './pages/CloseUpAnalysisPage';
 import { ResultsPage } from './pages/ResultsPage';
 import { ScanHistoryPage } from './pages/ScanHistoryPage';
 import { MultiViewPage } from './pages/MultiViewPage';
-
+import { PlantChatbotDrawer } from './components/PlantChatbotDrawer';
 
 import {
   LayoutDashboard,
@@ -19,14 +19,17 @@ import {
   ZoomIn,
   FileText,
   History,
-  Sprout
+  Sprout,
+  MessageSquare,
+  Sparkles,
 } from 'lucide-react';
 
 const App = () => {
-  const [activeTab, setActiveTab] = useState<string>('dashboard');
+  const [activeTab, setActiveTab] = useState<string>('multiview');
   const [latestScan, setLatestScan] = useState<ScanSummary | null>(null);
   const [selectedTile, setSelectedTile] = useState<TileResult | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
+  const [isChatOpen, setIsChatOpen] = useState<boolean>(false);
 
   // Trigger 4x4 Field Analysis via Backend API
   const handleRunSimulation = async () => {
@@ -52,13 +55,13 @@ const App = () => {
   };
 
   const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'multiview', label: 'Multi-View Plant', icon: Sprout },
-    { id: 'field-scan', label: 'Field Scan', icon: Scan },
-    { id: 'tile-analysis', label: 'Tile Analysis', icon: Grid },
-    { id: 'closeup-analysis', label: 'Close-up Analysis', icon: ZoomIn },
-    { id: 'results', label: 'Results', icon: FileText },
-    { id: 'scan-history', label: 'Scan History', icon: History },
+    { id: 'multiview', label: 'Multi-View Plant Clinic', icon: Sprout },
+    { id: 'dashboard', label: 'Field Dashboard', icon: LayoutDashboard },
+    { id: 'field-scan', label: 'Grid Scan', icon: Scan },
+    { id: 'tile-analysis', label: 'Tile Diagnostics', icon: Grid },
+    { id: 'closeup-analysis', label: 'Macro Analysis', icon: ZoomIn },
+    { id: 'results', label: 'Audit Reports', icon: FileText },
+    { id: 'scan-history', label: 'History Archive', icon: History },
   ];
 
   const renderContent = () => {
@@ -119,45 +122,48 @@ const App = () => {
           />
         );
       default:
-        return (
-          <DashboardPage
-            onNavigate={setActiveTab}
-            latestScan={latestScan}
-            onRunSimulation={handleRunSimulation}
-            loading={loading}
-          />
-        );
+        return <MultiViewPage />;
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#F4F8FC] text-gray-800">
+    <div className="min-h-screen bg-[#F8FAF8] text-gray-900">
       {/* Header */}
-      <header className="bg-[#0D47A1] text-white shadow-md border-b border-[#1565C0] sticky top-0 z-30">
+      <header className="bg-[#1B4332] text-white shadow-sm border-b border-[#2D6A4F] sticky top-0 z-30">
         <div className="flex items-center justify-between px-6 py-3.5">
-          <div className="flex items-center space-x-3 cursor-pointer" onClick={() => setActiveTab('dashboard')}>
-            <div className="bg-white/10 p-2 rounded-lg backdrop-blur-sm">
-              <Sprout className="w-6 h-6 text-green-300" />
+          <div className="flex items-center space-x-3 cursor-pointer" onClick={() => setActiveTab('multiview')}>
+            <div className="bg-emerald-500/20 p-2 rounded-xl border border-emerald-400/30 backdrop-blur-xs">
+              <Sprout className="w-6 h-6 text-emerald-300" />
             </div>
             <div>
               <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
-                AgriHealth AI
-                <span className="text-xs bg-blue-500/30 text-blue-100 px-2 py-0.5 rounded border border-blue-400/30 font-normal">
-                  Academic Prototype
+                AgriHealth Precision Clinic
+                <span className="text-[11px] bg-emerald-500/20 text-emerald-200 px-2.5 py-0.5 rounded-full border border-emerald-400/30 font-semibold">
+                  Multi-Model Active
                 </span>
               </h1>
-              <p className="text-xs text-blue-200">
-                Multi-View Agricultural Health Assessment & Dual-Evidence Fusion
+              <p className="text-xs text-emerald-200/80">
+                Explainable Multi-View Crop Pathology, Pathogen Identification & Clinical Treatment
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-4 text-right">
-            <div>
-              <p className="text-xs text-blue-200">System Status</p>
-              <p className="text-xs font-semibold text-green-300 flex items-center justify-end gap-1">
-                <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
-                FastAPI Backend Online
+          <div className="flex items-center gap-3">
+            {/* Plant Assistant Button */}
+            <button
+              onClick={() => setIsChatOpen(true)}
+              className="px-3.5 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-100 border border-emerald-400/30 rounded-xl font-bold text-xs flex items-center gap-2 transition-all shadow-xs active:scale-[0.98]"
+              title="Open General Plant & Agronomy Assistant (Guardrailed)"
+            >
+              <MessageSquare className="w-4 h-4 text-emerald-300" />
+              <span>🌿 Plant Assistant</span>
+            </button>
+
+            <div className="hidden sm:block text-right border-l border-emerald-700/60 pl-3.5">
+              <p className="text-[10px] uppercase font-bold text-emerald-300/80 tracking-wider">Engine Status</p>
+              <p className="text-xs font-semibold text-emerald-100 flex items-center justify-end gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                3 AI Models & Groq Ready
               </p>
             </div>
           </div>
@@ -166,11 +172,11 @@ const App = () => {
 
       <div className="flex min-h-[calc(100vh-65px)]">
         {/* Sidebar */}
-        <aside className="w-64 bg-white border-r border-gray-200 p-5 shrink-0 flex flex-col justify-between">
+        <aside className="w-64 bg-white border-r border-[#E3EDE5] p-5 shrink-0 flex flex-col justify-between">
           <div>
-            <div className="mb-6">
-              <p className="text-xs font-bold uppercase tracking-wider text-gray-400">
-                Navigation
+            <div className="mb-4">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-900/60">
+                Diagnostic Console
               </p>
             </div>
 
@@ -182,13 +188,13 @@ const App = () => {
                   <button
                     key={item.id}
                     onClick={() => setActiveTab(item.id)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-colors text-left ${
+                    className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all text-left ${
                       isActive
-                        ? 'bg-[#E3F2FD] text-[#0D47A1] border-l-4 border-[#0D47A1] shadow-sm'
-                        : 'text-gray-600 hover:bg-gray-100'
+                        ? 'bg-[#EBF4ED] text-[#1B4332] shadow-xs border-l-4 border-[#1B4332]'
+                        : 'text-gray-600 hover:bg-[#F4F8F5] hover:text-gray-900'
                     }`}
                   >
-                    <Icon className={`w-4 h-4 ${isActive ? 'text-[#0D47A1]' : 'text-gray-400'}`} />
+                    <Icon className={`w-4 h-4 ${isActive ? 'text-[#1B4332]' : 'text-gray-400'}`} />
                     <span>{item.label}</span>
                   </button>
                 );
@@ -196,13 +202,28 @@ const App = () => {
             </nav>
           </div>
 
-          <div className="mt-8 rounded-xl bg-[#F5F9FF] border border-blue-100 p-4">
-            <p className="text-xs font-bold text-[#0D47A1] uppercase tracking-wide">
-              Multi-View Workflow
-            </p>
-            <p className="mt-2 text-xs leading-relaxed text-gray-500">
-              Field image $\rightarrow$ 4x4 Tiles $\rightarrow$ Close-up resolution $\rightarrow$ Dual-evidence assessment
-            </p>
+          <div className="space-y-3">
+            {/* Quick Chat Shortcut Card */}
+            <div
+              onClick={() => setIsChatOpen(true)}
+              className="rounded-2xl bg-gradient-to-br from-[#F1F7F3] to-[#E5EFE8] border border-[#D5E5D8] p-3.5 cursor-pointer hover:shadow-xs transition-shadow"
+            >
+              <div className="flex items-center gap-2 text-xs font-bold text-[#1B4332]">
+                <MessageSquare className="w-4 h-4 text-emerald-700" />
+                <span>Botanical AI Advisor</span>
+              </div>
+              <p className="mt-1 text-[11px] text-gray-600 leading-relaxed">
+                Need cultivation, soil, or pest advice? Consult the guardrailed assistant.
+              </p>
+              <span className="mt-2 inline-flex items-center text-[11px] font-bold text-emerald-800 hover:underline">
+                Ask a question &rarr;
+              </span>
+            </div>
+
+            <div className="rounded-xl bg-[#FAFBF9] border border-[#E3EDE5] p-3 text-[11px] text-gray-500">
+              <span className="font-semibold text-gray-700 block">Ensemble Architecture:</span>
+              YOLOv8n + LeafSeverityNet + PestVectorNet + DIP
+            </div>
           </div>
         </aside>
 
@@ -211,11 +232,14 @@ const App = () => {
           {renderContent()}
 
           {/* Footer */}
-          <footer className="mt-12 pt-6 border-t border-gray-200 text-center text-xs text-gray-400">
-            Multi-View Drone-Based Agricultural Pest & Plant Disease Detection System — Dual-Evidence AI & DIP Architecture
+          <footer className="mt-12 pt-6 border-t border-[#E3EDE5] text-center text-xs text-gray-500">
+            AgriHealth Precision Crop Diagnostic Platform — Grounded Multi-Model AI & DIP Clinical Architecture
           </footer>
         </main>
       </div>
+
+      {/* Global Plant Chatbot Slide-over Drawer */}
+      <PlantChatbotDrawer isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
     </div>
   );
 };

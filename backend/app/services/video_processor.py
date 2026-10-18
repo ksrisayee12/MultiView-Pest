@@ -40,9 +40,12 @@ _MIN_FRAME_DIM: int = 64                    # reject tiny frames
 _ALLOWED_VIDEO_TYPES = {
     "video/mp4", "video/mpeg", "video/quicktime",
     "video/x-msvideo", "video/webm", "video/x-matroska",
-    "video/3gpp",
+    "video/3gpp", "image/jpeg", "image/png", "image/webp", "image/jpg",
 }
-_ALLOWED_VIDEO_EXTENSIONS = {".mp4", ".avi", ".mov", ".mkv", ".webm", ".3gp", ".m4v"}
+_ALLOWED_VIDEO_EXTENSIONS = {
+    ".mp4", ".avi", ".mov", ".mkv", ".webm", ".3gp", ".m4v",
+    ".jpg", ".jpeg", ".png", ".webp", ".bmp",
+}
 
 # Temp directory for uploaded clips
 _UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", "data/uploads"))
@@ -147,9 +150,27 @@ def validate_video_upload(
 
 def validate_video_stream(file_path: str) -> Tuple[bool, str, Dict[str, Any]]:
     """
-    Open the saved video with OpenCV and validate it is readable.
+    Open the saved video/image with OpenCV and validate it is readable.
     Returns (is_valid, error_message, video_info_dict).
     """
+    ext = Path(file_path).suffix.lower()
+    if ext in {".jpg", ".jpeg", ".png", ".webp", ".bmp"}:
+        img = cv2.imread(file_path)
+        if img is None or img.size == 0:
+            return False, "OpenCV could not open the image file.", {}
+        h, w = img.shape[:2]
+        if min(h, w) < _MIN_FRAME_DIM:
+            return False, f"Image resolution too small ({w}x{h}). Minimum: {_MIN_FRAME_DIM}px.", {}
+        return True, "", {
+            "fps": 1.0,
+            "total_frames": 1,
+            "duration_seconds": 1.0,
+            "width": w,
+            "height": h,
+            "codec": "image",
+            "is_image": True,
+        }
+
     cap = None
     try:
         cap = cv2.VideoCapture(file_path)
@@ -230,6 +251,26 @@ def extract_frames_from_clip(
     frames_extracted = 0
     frames_skipped_dup = 0
     prev_gray: Optional[np.ndarray] = None
+
+    ext = Path(file_path).suffix.lower()
+    if ext in {".jpg", ".jpeg", ".png", ".webp", ".bmp"}:
+        img = cv2.imread(file_path)
+        if img is None:
+            return [], {"error": "Cannot open image file", "frames_extracted": 0}
+        obs = make_frame_observation(
+            clip_id=clip_id,
+            frame_index=0,
+            timestamp_sec=0.0,
+            view_label=view_label,
+            frame_bgr=img,
+        )
+        return [obs], {
+            "frames_extracted": 1,
+            "frames_skipped_duplicate": 0,
+            "total_video_frames_read": 1,
+            "sample_fps": 1.0,
+            "processing_time_sec": round(time.time() - start_time, 2),
+        }
 
     cap = None
     try:

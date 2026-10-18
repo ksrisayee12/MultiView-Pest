@@ -1,0 +1,48 @@
+{
+  "manifest_version": "1.0.0",
+  "created_at": "2026-10-18T12:00:00Z",
+  "project": "MultiView-AgriHealth",
+  "description": "Immutable test manifest for real tomato leaf verification fixtures.",
+  "samples": [
+    {
+      "sample_id": "sample_healthy_001",
+      "relative_path": "data/samples/tomato_healthy.jpg",
+      "ground_truth_label": "healthy",
+      "canonical_label": "healthy",
+      "source_dataset": "PlantVillage",
+      "split": "test",
+      "crop": "tomato",
+      "sha256": "4490c64b6ae59728867a54a72d73f451f2c2fe4596fa53606f15e8da928db641"
+    },
+    {
+      "sample_id": "sample_early_blight_001",
+      "relative_path": "data/samples/tomato_early_blight.jpg",
+      "ground_truth_label": "early_blight",
+      "canonical_label": "early_blight",
+      "source_dataset": "PlantVillage",
+      "split": "test",
+      "crop": "tomato",
+      "sha256": "4b971a8e100371c6ca4ca86755498a4d46cfbfa8b1bb3288ca239ee8dbdfcb5a"
+    },
+    {
+      "sample_id": "sample_late_blight_001",
+      "relative_path": "data/samples/tomato_late_blight.jpg",
+      "ground_truth_label": "late_blight",
+      "canonical_label": "late_blight",
+      "source_dataset": "PlantVillage",
+      "split": "test",
+      "crop": "tomato",
+      "sha256": "5c9e223c2a3e9903b749d2cb3788ff398b1ecf4cb20792945d8b2d1d07c3fb57"
+    },
+    {
+      "sample_id": "sample_septoria_001",
+      "relative_path": "data/samples/tomato_septoria_leaf_spot.jpg",
+      "ground_truth_label": "septoria_leaf_spot",
+      "canonical_label": "septoria_leaf_spot",
+      "source_dataset": "PlantVillage",
+      "split": "test",
+      "crop": "tomato",
+      "sha256": "d4e21a8c983411b5ac8a5f3dfd917f8a70c5e7b51b33e144a9497d37db2d32cf"
+    }
+  ]
+}

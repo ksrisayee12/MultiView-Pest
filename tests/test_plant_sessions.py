@@ -136,3 +136,55 @@ def test_plant_fusion_does_not_count_duplicate_frames_as_leaves():
     assert ass["status"] == STATUS_HEALTHY
     # Ensure there is no fabricated claim of 5 distinct leaves
     assert ass["total_usable_frames"] == 5
+
+
+def test_delete_single_plant_session():
+    # Create session
+    c_res = client.post(
+        "/api/plant-sessions",
+        json={"plant_id": "PLANT-DELETE-TEST", "crop_type": "tomato"},
+    )
+    sess_id = c_res.json()["session_id"]
+
+    # Delete session
+    del_res = client.delete(f"/api/plant-sessions/{sess_id}")
+    assert del_res.status_code == 200
+    assert del_res.json()["session_id"] == sess_id
+
+    # Verify 404
+    g_res = client.get(f"/api/plant-sessions/{sess_id}")
+    assert g_res.status_code == 404
+
+
+def test_delete_duplicate_plant_sessions():
+    # Create 3 duplicate sessions with identical plant_id
+    dup_id = "PLANT-DUP-TEST"
+    s1 = client.post("/api/plant-sessions", json={"plant_id": dup_id, "crop_type": "tomato"}).json()["session_id"]
+    s2 = client.post("/api/plant-sessions", json={"plant_id": dup_id, "crop_type": "tomato"}).json()["session_id"]
+    s3 = client.post("/api/plant-sessions", json={"plant_id": dup_id, "crop_type": "tomato"}).json()["session_id"]
+
+    # Call deduplication endpoint
+    dedup_res = client.delete("/api/plant-sessions?duplicates_only=true")
+    assert dedup_res.status_code == 200
+    data = dedup_res.json()
+    assert data["deleted_count"] >= 2
+
+    # Check that only one session remains for PLANT-DUP-TEST
+    list_res = client.get("/api/plant-sessions")
+    matching = [s for s in list_res.json() if s["plant_id"] == dup_id]
+    assert len(matching) == 1
+
+
+def test_bulk_delete_all_sessions():
+    # Create test session
+    client.post("/api/plant-sessions", json={"plant_id": "PLANT-BULK-DEL", "crop_type": "tomato"})
+
+    # Bulk delete all
+    res = client.delete("/api/plant-sessions?duplicates_only=false")
+    assert res.status_code == 200
+    assert "deleted_count" in res.json()
+
+    # Verify session list is empty
+    list_res = client.get("/api/plant-sessions")
+    assert len(list_res.json()) == 0
+

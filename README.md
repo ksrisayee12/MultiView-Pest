@@ -1,27 +1,30 @@
 # MultiView-AgriHealth: Agricultural Plant Health Assessment System
 
-A modular, dual-evidence AI & Digital Image Processing (DIP) agricultural monitoring application
-for single-plant multi-view health assessment, disease detection, damage area estimation, and management recommendations.
+A modular, dual-evidence AI & Digital Image Processing (DIP) agricultural decision-support application
+for plant health assessment, disease detection, damage area estimation, and multi-view consensus monitoring.
 
-> **Academic & Precision Agriculture Prototype** — Fully operational multi-view video pipeline, temporal leaf tracking, cross-view consensus fusion, and deterministic simulation suite. Deep learning model slots operate cleanly: when weights are not present, the system runs with explicit `MODEL_UNAVAILABLE` or `HEURISTIC` statuses without inventing predictions.
+> **Production Decision-Support System** — Fully operational multi-view video/image pipeline, temporal leaf tracking, cross-view consensus fusion, multi-plant batch mode with sample isolation, report export (Markdown & JSON), and a real fine-tuned YOLOv8n tomato disease detection model with verified provenance. Missing conditions return explicit unobserved/not-detected states without fabricating predictions.
 
 ---
 
 ## Capabilities & Workflows
 
-### 1. Multi-View Plant Analysis Workflow (Primary Mode)
-Analyzes one individual plant across multiple camera viewpoints (`front`, `back`, `left`, `right`, `top`, `underside`, `arbitrary`):
-- **Streamed Video Ingestion:** Decodes uploaded video clips on the fly with OpenCV `VideoCapture` (never loads full video into memory).
-- **Configurable Frame Sampling:** Extracts representative frames with near-duplicate suppression.
+### 1. Flexible Media Ingestion Workflow (Primary Mode)
+Accepts **single images, multiple images, single videos, or multiple videos** for individual plants or across a batch:
+- **Streamed Video & Image Ingestion:** Decodes uploaded video clips on the fly with OpenCV `VideoCapture` (never loads full video into memory) and processes still images (`.jpg`, `.png`, `.webp`) as 1-frame observations.
+- **Bulk Media Queue:** Drag-and-drop or multi-select file ingestion with per-file viewpoint angle tagging (`front`, `back`, `left`, `right`, `top`, `underside`, `unknown`).
+- **Multi-Plant Batch Mode (Strict Isolation):** Accepts bulk media mapped to distinct Plant IDs (`PLANT-001`, `PLANT-002`). Evidence from Plant A is strictly isolated from Plant B.
+- **Content-Hash Deduplication:** SHA-256 content hashing automatically detects and suppresses duplicate uploads.
 - **Leaf-Region Lesion Estimation:** Restricts visible symptom measurement strictly to detected foliage masks (via YOLO segmentation or HSV fallback), preventing background/soil false positives.
 - **Within-Clip Temporal Tracking:** Associates leaf bounding boxes across adjacent frames using IoU/centroid matching, suppressing duplicate leaf counts.
 - **Cross-View Evidence Association:** Merges multi-angle visual evidence, detects conflicting observations, bounds maximum visible lesion area, and records unobserved viewpoints as `UNKNOWN`.
 - **Honest Status Taxonomy:**
-  - `HEALTHY_APPEARING` — Sufficient viewpoints with no symptoms detected above threshold.
+  - `HEALTHY_APPEARING` — Sufficient viewpoints observed with no symptoms detected above threshold.
   - `SYMPTOMS_DETECTED` — Credible disease/symptom evidence detected in one or more viewpoints.
   - `UNCERTAIN` — Conflicting evidence between views or models.
   - `INSUFFICIENT_COVERAGE` — Fewer than required viewpoints observed.
-  - `PROCESSING_ERROR` / `MODEL_UNAVAILABLE` — Explicit system states.
+  - `MODEL_UNAVAILABLE` — Model weights missing or offline.
+- **Decision-Support Report Export:** One-click download of full reports in Markdown (`.md`) and JSON (`.json`) with complete model provenance (SHA-256 hash), observation summaries, and agronomic disclaimers.
 
 ### 2. Legacy Field-Tile Composite Workflow (Preserved Mode)
 Retained for spatial drone composite scans:
@@ -31,165 +34,63 @@ Retained for spatial drone composite scans:
 
 ---
 
-## Project Structure
+## Active Real ML Model
 
-```
-MultiView-AgriHealth/
-├── backend/
-│   ├── app/
-│   │   ├── api/              health.py, analyze.py, scans.py, analytics.py, simulation.py,
-│   │   │                     models_status.py, plant_sessions.py (Phase 2-6 endpoints)
-│   │   ├── config/           settings.py (env-configurable thresholds)
-│   │   ├── schemas/          plant_session.py (Pydantic request/response models)
-│   │   ├── services/         model_registry.py (singleton model loader)
-│   │   │                     video_processor.py (streamed video decoder & sampler)
-│   │   │                     leaf_analysis.py (YOLO segmentation + HSV heuristic fallback)
-│   │   │                     temporal_tracker.py (within-clip IoU/centroid leaf tracking)
-│   │   │                     cross_view_matcher.py (multi-angle evidence fusion & consensus)
-│   │   │                     plant_fusion.py (plant-level assessment & coverage engine)
-│   │   │                     simulation_fixtures.py (deterministic multi-view fixtures)
-│   │   │                     evaluation.py (metrics, Wilson 95% CIs, calibration reports)
-│   │   └── main.py           FastAPI entrypoint with lifespan startup & CORS
-│   ├── database/             mongodb.py (MongoDB + in-memory fallback)
-│   ├── fusion/               fusion_engine.py (legacy 16-tile fusion rules)
-│   ├── image_processing/     color_analysis.py, lesion_detection.py, visual_health.py
-│   ├── models/               Place trained .pt weights here (gitignored)
-│   └── recommendations/      recommendations.py
-├── configs/                  YAML configuration files for classes, thresholds, datasets
-├── data/
-│   ├── raw/                  Dataset directories (disease, pest, multiview, drone)
-│   ├── processed/            Generated output images
-│   └── samples/              Sample leaf images for testing
-├── docs/
-│   └── IMPLEMENTATION_STATUS.md   Phase-by-phase implementation report
-├── evaluation/               evaluate_all.py (stressed evaluation runner)
-├── frontend/                 React 18 + TypeScript + Vite + Tailwind CSS
-│   ├── src/
-│   │   ├── components/       Header.tsx
-│   │   ├── pages/            MultiViewPage.tsx (Phase 3 UI), DashboardPage.tsx,
-│   │   │                     FieldScanPage.tsx, TileAnalysisPage.tsx, ScanHistoryPage.tsx
-│   │   ├── types.ts          Full TypeScript contracts for multi-view & legacy APIs
-│   │   └── main.tsx          Application routing & navigation
-├── notebooks/                YOLO26_PlantVillage_Training.ipynb (reproducible training)
-├── scripts/                  setup_venv.ps1, run_backend.ps1, run_tests.ps1, run_demo.py
-├── tests/                    test_stage1.py, test_stage2_dip.py, test_stage3_pest_detection.py,
-│                             test_video_processor.py, test_plant_sessions.py, test_phases_4_5_6.py
-├── .env.example              Configuration keys
-├── requirements.txt          Runtime dependencies
-└── START_HERE.md             Step-by-step setup guide
-```
+- **Model Architecture:** Fine-Tuned YOLOv8n Object Detector
+- **Artifact Path:** `backend/models/yolo26_tomato.pt` (6.25 MB)
+- **Artifact SHA-256:** `ccc05ab88bb550567fb7a7a07c564d37e344e7e69e094da54481ea47c0f134b3`
+- **Supported Conditions (9 Classes):**
+  1. Tomato Early Blight (`early_blight`)
+  2. Tomato Septoria Leaf Spot (`septoria_leaf_spot`)
+  3. Tomato Healthy Foliage (`healthy`)
+  4. Tomato Bacterial Spot (`bacterial_spot`)
+  5. Tomato Late Blight (`late_blight`)
+  6. Tomato Mosaic Virus (`mosaic_virus`)
+  7. Tomato Yellow Leaf Curl Virus (`yellow_leaf_curl`)
+  8. Tomato Leaf Mold (`leaf_mold`)
+  9. Tomato Two-Spotted Spider Mites (`spider_mites`)
+- **Evaluation Runner:** `python scripts/evaluate_model.py` (see `docs/MODEL_EVALUATION.md`)
 
 ---
 
-## Quick Start
+## Quick Start & Verification
 
-### 1. Backend Setup
-
-**Windows PowerShell:**
+### 1. Launch Backend API Server
 ```powershell
-.\scripts\setup_venv.ps1
-.\.venv\Scripts\python.exe -m uvicorn backend.app.main:app --reload --port 8000
+cd MultiView-AgriHealth
+.\.venv\Scripts\python.exe -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
+Interactive API Documentation (Swagger): `http://127.0.0.1:8000/docs`
 
-**macOS/Linux:**
-```bash
-bash scripts/setup_venv.sh
-source .venv/bin/activate
-python -m uvicorn backend.app.main:app --reload --port 8000
-```
-
-- **Backend:** http://localhost:8000
-- **Interactive OpenAPI Docs:** http://localhost:8000/docs
-- **Health Check:** http://localhost:8000/api/health
-- **Model Readiness:** http://localhost:8000/api/models/status
-
-### 2. Frontend Setup
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-- **Frontend App:** http://localhost:5173
-
-### 3. Run All Tests (70/70 Passing)
-
+### 2. Launch Frontend Dev Server
 ```powershell
+cd MultiView-AgriHealth\frontend
+npm.cmd run dev
+```
+Web User Interface: `http://localhost:5173`
+
+### 3. Run Automated Tests (86/86 Passing)
+```powershell
+cd MultiView-AgriHealth
 .\.venv\Scripts\python.exe -m pytest tests/ -v
 ```
 
-### 4. Run End-to-End Demo Script
-
+### 4. Build Frontend for Production
 ```powershell
-.\.venv\Scripts\python.exe scripts/run_demo.py
-```
-
-### 5. Frontend Production Build
-
-```powershell
-cd frontend
+cd MultiView-AgriHealth\frontend
 npm.cmd run build
 ```
 
 ---
 
-## API Endpoints Reference
+## Documentation Index
 
-### Plant-Session & Multi-View APIs (Phase 2–6)
-| Method | Endpoint | Description |
-|---|---|---|
-| `POST` | `/api/plant-sessions` | Create a plant analysis session with stable `plant_id` |
-| `GET` | `/api/plant-sessions` | List recent plant sessions |
-| `GET` | `/api/plant-sessions/{session_id}` | Retrieve session metadata and clips |
-| `DELETE` | `/api/plant-sessions/{session_id}` | Delete session and clean up temporary assets |
-| `POST` | `/api/plant-sessions/{session_id}/videos` | Upload video clip with viewpoint metadata |
-| `POST` | `/api/plant-sessions/{session_id}/analyze` | Start asynchronous multi-view video analysis |
-| `GET` | `/api/plant-sessions/{session_id}/status` | Check background analysis progress and stage |
-| `GET` | `/api/plant-sessions/{session_id}/assessment` | Retrieve finalized fused plant assessment |
-| `GET` | `/api/plant-sessions/{session_id}/observations` | Inspect all frame observations across clips |
-| `POST` | `/api/plant-sessions/simulation` | Generate deterministic synthetic 4-view session |
-| `GET` | `/api/plant-sessions/leaf-segmentation-status` | Check leaf segmentation model availability |
-| `POST` | `/api/plant-sessions/{session_id}/leaf-analysis` | Run mask-aware leaf quality & lesion analysis |
-| `GET` | `/api/plant-sessions/{session_id}/temporal-tracks` | Get within-clip temporal leaf tracks |
-| `GET` | `/api/plant-sessions/{session_id}/cross-view-evidence` | Get multi-angle cross-view evidence report |
-| `POST` | `/api/plant-sessions/run-simulation-suite` | Run all 5 deterministic simulation scenarios |
-| `POST` | `/api/plant-sessions/evaluate` | Evaluate predictions against ground truth (Wilson 95% CI) |
-
-### System & Legacy APIs
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/health` | Service health status |
-| `GET` | `/api/models/status` | Model readiness and loaded version information |
-| `POST` | `/api/analyze/field` | Legacy 16-tile composite field analysis |
-| `POST` | `/api/analyze/tile` | Single-tile YOLO + DIP analysis |
-| `POST` | `/api/analyze/closeup` | High-resolution close-up tile resolution |
-| `GET` | `/api/scans` | Historical scan records |
-| `GET` | `/api/analytics` | Aggregate scan statistics |
-
----
-
-## Model Readiness & Training Instructions
-
-No model weights are committed to Git. Check status at `GET /api/models/status`:
-
-| Model Slot | Task | When Weights Missing |
-|---|---|---|
-| Disease Classifier | Classification (e.g. YOLOv8-cls) | Reports `MISSING_WEIGHTS`, skips ML prediction, relies on heuristic DIP |
-| Leaf Segmenter | Instance Segmentation (e.g. YOLOv8-seg) | Reports `MODEL_MISSING`, falls back to HSV foliage mask |
-| Pest Detector | Object Detection (e.g. YOLOv8) | Reports `MISSING_WEIGHTS`, handles missing model cleanly |
-
-### Training Disease Classification Weights:
-1. Place the [PlantVillage dataset](https://github.com/spMohanty/PlantVillage-Dataset) into `data/raw/disease/`.
-2. Open and run `notebooks/YOLO26_PlantVillage_Training.ipynb`.
-3. Save the trained weights to `backend/models/yolo26_tomato.pt`.
-4. Restart the backend — model status will switch to `READY`.
-
----
-
-## Verification & Acceptance
-
-- **Backend Pytest Suite:** 70 passed in 2.26s.
-- **Frontend Build:** `tsc && vite build` bundled successfully in 11.48s.
-- **Demo Runner:** `python scripts/run_demo.py` verified field tile fusion, stressed evaluation, multi-view session fusion, and deterministic simulation fixtures.
-- **Detailed Audit & Implementation Logs:** See [`docs/IMPLEMENTATION_STATUS.md`](docs/IMPLEMENTATION_STATUS.md).
+- [Production Readiness Audit](file:///docs/PRODUCTION_READINESS_AUDIT.md)
+- [Dataset Catalog & Governance](file:///docs/DATASET_CATALOG.md)
+- [Model Card](file:///docs/MODEL_CARD.md)
+- [Model Evaluation Report](file:///docs/MODEL_EVALUATION.md)
+- [REST API Reference](file:///docs/API.md)
+- [Deployment Guide](file:///docs/DEPLOYMENT.md)
+- [Testing Matrix](file:///docs/TESTING.md)
+- [Scientific & Biosecurity Limitations](file:///docs/LIMITATIONS.md)
+- [Implementation Status](file:///docs/IMPLEMENTATION_STATUS.md)
