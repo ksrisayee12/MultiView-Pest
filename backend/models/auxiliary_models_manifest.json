@@ -2,14 +2,15 @@
   "models": {
     "leaf_severity_net": {
       "file": "leaf_severity_net.pth",
-      "sha256": "38f9fd17ddf0a297aada7a42624f83122358e7356d7abd7f634e5a9f2f82c476",
+      "sha256": "e877c85d1e69661d8ca3849ae19a28fd28fa010950058346c4f12b1920f96b72",
       "classes": [
         "HEALTHY",
         "MILD_CHLOROSIS",
         "MODERATE_LESIONS",
         "SEVERE_NECROSIS"
       ],
-      "purpose": "Deep foliar health classification & continuous lesion % regression"
+      "purpose": "Deep foliar health classification & continuous lesion % regression",
+      "dataset": "PlantVillage real foliar necrosis dataset (980 images)"
     },
     "pest_vector_net": {
       "file": "pest_vector_net.pth",

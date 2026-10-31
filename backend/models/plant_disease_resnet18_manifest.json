@@ -1,0 +1,39 @@
+{
+  "model_name": "AgriHealthNet_ResNet18",
+  "architecture": "resnet18",
+  "classes": [
+    "Tomato___healthy",
+    "Tomato___Early_blight",
+    "Tomato___Late_blight",
+    "Tomato___Septoria_leaf_spot",
+    "Tomato___Bacterial_spot",
+    "Tomato___Leaf_Mold",
+    "Tomato___Spider_mites Two-spotted_spider_mite",
+    "Tomato___Target_Spot",
+    "Tomato___Tomato_mosaic_virus",
+    "Tomato___Tomato_Yellow_Leaf_Curl_Virus",
+    "Potato___Early_blight",
+    "Potato___Late_blight",
+    "Pepper,_bell___Bacterial_spot",
+    "Pepper,_bell___healthy"
+  ],
+  "taxonomy_mapping": {
+    "Tomato___healthy": "healthy",
+    "Tomato___Early_blight": "early_blight",
+    "Tomato___Late_blight": "late_blight",
+    "Tomato___Septoria_leaf_spot": "septoria_leaf_spot",
+    "Tomato___Bacterial_spot": "bacterial_spot",
+    "Tomato___Leaf_Mold": "leaf_mold",
+    "Tomato___Spider_mites Two-spotted_spider_mite": "spider_mites",
+    "Tomato___Target_Spot": "target_spot",
+    "Tomato___Tomato_mosaic_virus": "mosaic_virus",
+    "Tomato___Tomato_Yellow_Leaf_Curl_Virus": "yellow_leaf_curl",
+    "Potato___Early_blight": "potato_early_blight",
+    "Potato___Late_blight": "potato_late_blight",
+    "Pepper,_bell___Bacterial_spot": "pepper_bacterial_spot",
+    "Pepper,_bell___healthy": "pepper_healthy"
+  },
+  "val_accuracy": 96.73,
+  "sha256": "1f04f54e21c74679c9f47e00259c1cc373715d3accff6d21d896331fcec741b7",
+  "trained_at": "2026-10-31 15:11:54 UTC"
+}
