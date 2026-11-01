@@ -26,9 +26,12 @@ __pycache__/
 *.ckpt
 *.onnx
 *.engine
-backend/models/*.pt
-models/disease/*.pt
-models/pest/*.pt
+# Whitelist production lightweight trained models in backend/models
+!backend/models/plant_disease_classifier.pth
+!backend/models/plant_disease_resnet18.pth
+!backend/models/leaf_severity_net.pth
+!backend/models/pest_vector_net.pth
+!backend/models/yolo26_tomato.pt
 
 # Raw datasets — do not commit large data
 data/raw/*

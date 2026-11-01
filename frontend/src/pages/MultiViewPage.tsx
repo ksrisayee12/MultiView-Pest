@@ -505,7 +505,7 @@ export const MultiViewPage: React.FC = () => {
     try {
       const form = new FormData();
       form.append('plant_id', `PLANT-SIM-${Math.floor(100 + Math.random() * 900)}`);
-      form.append('crop_type', 'tomato');
+      form.append('crop_type', currentSession?.crop_type || 'tomato');
       form.append('include_symptoms', 'true');
 
       const res = await fetch('/api/plant-sessions/simulation', {
@@ -962,8 +962,9 @@ export const MultiViewPage: React.FC = () => {
                 className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1565C0]"
               >
                 <option value="tomato">Tomato (Solanum lycopersicum)</option>
-                <option value="bell_pepper">Bell Pepper</option>
-                <option value="potato">Potato</option>
+                <option value="bell_pepper">Bell Pepper / Capsicum</option>
+                <option value="chilli">Chilli / Hot Pepper</option>
+                <option value="potato">Potato (Solanum tuberosum)</option>
                 <option value="custom">General / Custom Crop</option>
               </select>
             </div>
@@ -1279,7 +1280,7 @@ export const MultiViewPage: React.FC = () => {
             diagnosis={
               assessment.top_disease_class
                 ? assessment.top_disease_class.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
-                : (assessment.status === 'HEALTHY_APPEARING' ? 'Healthy Tomato Foliage' : 'Unspecified Condition')
+                : (assessment.status === 'HEALTHY_APPEARING' ? `Healthy ${currentSession?.crop_type ? currentSession.crop_type.charAt(0).toUpperCase() + currentSession.crop_type.slice(1) : 'Plant'} Foliage` : 'Unspecified Condition')
             }
             conditionKey={assessment.top_disease_class || 'healthy'}
             isHealthy={assessment.status === 'HEALTHY_APPEARING' || (!assessment.top_disease_class || assessment.top_disease_class === 'healthy')}
@@ -1381,12 +1382,20 @@ export const MultiViewPage: React.FC = () => {
             <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
               <div className="text-xs text-gray-500 font-medium">Top Predicted Symptom</div>
               <div className="text-xl font-bold text-[#1565C0] mt-1 capitalize truncate">
-                {assessment.top_disease_class ? assessment.top_disease_class.replace('_', ' ') : 'None'}
+                {assessment.top_disease_class
+                  ? assessment.top_disease_class.replace(/_/g, ' ')
+                  : assessment.status === 'HEALTHY_APPEARING'
+                  ? 'Healthy Foliage'
+                  : assessment.status === 'UNCERTAIN'
+                  ? 'Symptoms Uncertain'
+                  : 'Awaiting Evidence'}
               </div>
               <div className="text-[11px] text-gray-500 mt-0.5">
-                {assessment.disease_fraction !== undefined && assessment.disease_fraction !== null
-                  ? `${Math.round(assessment.disease_fraction * 100)}% of frames`
-                  : 'No symptoms'}
+                {assessment.top_disease_class && assessment.disease_fraction !== undefined && assessment.disease_fraction !== null
+                  ? `${Math.round(assessment.disease_fraction * 100)}% of observed frames`
+                  : assessment.status === 'HEALTHY_APPEARING'
+                  ? 'Optimal canopy vitality'
+                  : 'Clear on observed angles'}
               </div>
             </div>
 
@@ -1396,7 +1405,7 @@ export const MultiViewPage: React.FC = () => {
                 {assessment.visible_symptom_area_percent !== null &&
                 assessment.visible_symptom_area_percent !== undefined
                   ? `${assessment.visible_symptom_area_percent}%`
-                  : 'N/A'}
+                  : '0.0%'}
               </div>
               <div className="text-[11px] text-gray-500 mt-0.5">OpenCV color threshold</div>
             </div>

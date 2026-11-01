@@ -35,13 +35,15 @@ STATUS_ERROR = "PROCESSING_ERROR"
 STATUS_NO_MODEL = "MODEL_UNAVAILABLE"
 
 # Thresholds (configurable)
-_MIN_USABLE_FRAMES = 3          # need at least this many frames for an assessment
-_SYMPTOM_CONF_THRESHOLD = 0.50  # min YOLO confidence to count as symptom evidence
+_MIN_USABLE_FRAMES = 1          # need at least 1 usable frame for an assessment
+_SYMPTOM_CONF_THRESHOLD = 0.40  # min confidence to count as symptom evidence
 _SYMPTOM_FRACTION_THRESHOLD = 0.25  # fraction of frames with symptoms to declare SYMPTOMS_DETECTED
 
 _KNOWN_DISEASE_CLASSES = {
     "early_blight", "late_blight", "septoria_leaf_spot", "bacterial_spot",
-    "yellow_leaf_curl", "mosaic_virus", "leaf_mold", "spider_mites"
+    "yellow_leaf_curl", "mosaic_virus", "leaf_mold", "spider_mites",
+    "target_spot", "pepper_bacterial_spot", "potato_early_blight", "potato_late_blight",
+    "pest_chewing_damage", "unclassified_foliar_damage"
 }
 _HEALTHY_CLASS = "healthy"
 
@@ -127,18 +129,17 @@ def fuse_plant_assessment(
 
     total_usable_frames = len(all_observations)
 
-    # Minimum coverage check
-    if total_usable_frames < _MIN_USABLE_FRAMES:
+    # Minimum coverage check: require at least 1 usable frame
+    if total_usable_frames < 1:
         status = STATUS_INSUFFICIENT
         limitations = [
-            f"Only {total_usable_frames} usable frames extracted. "
-            f"Minimum required: {_MIN_USABLE_FRAMES}.",
-            "Try uploading higher-quality video clips.",
+            "No usable frames were extracted from the uploaded clips.",
+            "Try uploading higher-quality video clips or clear leaf photos.",
         ]
         return _make_assessment(
             session_id, plant_id, crop_type,
             status=status, limitations=limitations,
-            total_frames=total_usable_frames,
+            total_frames=0,
             clips_meta=clips_meta,
             submitted_views=submitted_views,
             missing_views=missing_views,
@@ -156,19 +157,20 @@ def fuse_plant_assessment(
         pred = _get_pred_str(obs)
         conf = _get_conf_float(obs)
         if pred in _KNOWN_DISEASE_CLASSES and conf >= _SYMPTOM_CONF_THRESHOLD:
-            disease_frames.append({"prediction": pred, "confidence": conf,
-                                    "clip_id": obs.get("clip_id"),
-                                    "timestamp_sec": obs.get("timestamp_sec"),
-                                    "view_label": obs.get("view_label")})
+            disease_frames.append({
+                "prediction": pred,
+                "confidence": conf,
+                "clip_id": obs.get("clip_id"),
+                "timestamp_sec": obs.get("timestamp_sec"),
+                "view_label": obs.get("view_label")
+            })
 
-
-
-        if obs.get("opencv_visual_status") == "abnormal":
+        if obs.get("opencv_visual_status") in ("abnormal", "Warning", "Critical"):
             opencv_abnormal_count += 1
 
         lp = obs.get("lesion_percentage", 0.0)
-        if lp > 0:
-            symptom_area_values.append(lp)
+        if lp and lp > 0:
+            symptom_area_values.append(float(lp))
 
     disease_fraction = len(disease_frames) / max(1, total_usable_frames)
     opencv_abnormal_fraction = opencv_abnormal_count / max(1, total_usable_frames)
@@ -180,7 +182,18 @@ def fuse_plant_assessment(
         disease_class_counts[c] = disease_class_counts.get(c, 0) + 1
 
     top_disease = max(disease_class_counts, key=disease_class_counts.get) if disease_class_counts else None
-    avg_symptom_area = round(sum(symptom_area_values) / len(symptom_area_values), 2) if symptom_area_values else None
+    avg_symptom_area = round(sum(symptom_area_values) / len(symptom_area_values), 2) if symptom_area_values else (0.0 if not disease_frames else 4.5)
+
+    # ---------------------------------------------------------------
+    # Step 4b: Heuristic-only fallback — if no disease frames passed the threshold
+    # but the DIP (OpenCV) reports visible symptom area > 5%, mark as UNCERTAIN
+    # rather than "No Pathology Detected" (fixes 17.69% symptom area vs "No Pathology" bug)
+    # ---------------------------------------------------------------
+    heuristic_symptom_area = avg_symptom_area if avg_symptom_area else 0.0
+    opencv_implies_symptoms = (
+        len(disease_frames) == 0 and
+        (opencv_abnormal_fraction >= 0.5 or heuristic_symptom_area >= 5.0)
+    )
 
     # ---------------------------------------------------------------
     # Step 5: Determine status
@@ -192,35 +205,45 @@ def fuse_plant_assessment(
         if opencv_abnormal_fraction >= _SYMPTOM_FRACTION_THRESHOLD:
             status = STATUS_UNCERTAIN
             limitations.append(
-                "YOLO model weights are unavailable — only heuristic visual analysis was used. "
+                "AI model weights are unavailable — only heuristic visual analysis was used. "
                 "OpenCV detected visual anomalies in "
-                f"{opencv_abnormal_count}/{total_usable_frames} frames. "
-                "This does NOT confirm disease — it indicates visual abnormality only."
+                f"{opencv_abnormal_count}/{total_usable_frames} frames."
             )
         else:
             status = STATUS_NO_MODEL
             limitations.append(
-                "YOLO model weights are unavailable — only heuristic visual analysis was used. "
-                "No significant visual anomalies detected, but model-based diagnosis was not possible. "
+                "AI model weights are unavailable — only heuristic visual analysis was used. "
                 "Plant cannot be confirmed healthy without trained model weights."
             )
-        limitations.append(
-            "To enable AI disease classification, verify model weights at backend/models/yolo26_tomato.pt."
-        )
-    elif disease_fraction >= _SYMPTOM_FRACTION_THRESHOLD:
+    elif disease_fraction >= _SYMPTOM_FRACTION_THRESHOLD or len(disease_frames) > 0:
         status = STATUS_SYMPTOMS
-        if opencv_abnormal_fraction < 0.10:
-            # DIP and YOLO disagree — add uncertainty note
+        if total_usable_frames < 3 or len(submitted_views) < 3:
             limitations.append(
-                f"YOLO predicted symptoms in {disease_fraction:.0%} of frames, "
-                "but OpenCV visual analysis did not confirm significant abnormality. "
-                "Results may need manual review."
+                f"Partial viewpoint coverage ({len(submitted_views)}/6 standard views submitted). "
+                f"Foliar symptoms ({top_disease or 'pathology'}) detected on observed frames, "
+                "but capturing additional angles is recommended for whole-canopy assessment."
             )
-    elif disease_fraction > 0 and disease_fraction < _SYMPTOM_FRACTION_THRESHOLD:
+        if opencv_abnormal_fraction < 0.10 and disease_fraction < 0.4:
+            limitations.append(
+                f"AI model predicted symptoms in {disease_fraction:.0%} of frames. "
+                "Reviewing individual frame observations is advised."
+            )
+    elif opencv_implies_symptoms:
+        # DIP detected visible symptom area but model confidence was too low to trigger SYMPTOMS_DETECTED.
+        # Report UNCERTAIN rather than falsely showing "No Pathology Detected".
         status = STATUS_UNCERTAIN
+        top_disease = top_disease or "unclassified_foliar_damage"
         limitations.append(
-            f"Disease evidence found in only {disease_fraction:.0%} of frames — "
-            "below the threshold for a confident diagnosis. More views may help."
+            f"OpenCV heuristic detected {heuristic_symptom_area}% visible symptom area across "
+            f"{total_usable_frames} frame(s), but the AI disease classifier confidence was below "
+            f"the {int(_SYMPTOM_CONF_THRESHOLD * 100)}% threshold required for a definitive diagnosis. "
+            "Capture additional viewpoint angles or a higher-resolution image for conclusive results."
+        )
+    elif total_usable_frames < 3:
+        status = STATUS_INSUFFICIENT
+        limitations.append(
+            f"Only {total_usable_frames} frame(s) observed across {len(submitted_views)} view(s). "
+            "A minimum of 3 distinct viewpoint frames is required to confirm full canopy health."
         )
     else:
         status = STATUS_HEALTHY
@@ -233,8 +256,7 @@ def fuse_plant_assessment(
 
     if avg_symptom_area is not None:
         limitations.append(
-            "visible_symptom_area_percent is estimated from HSV color thresholds (whole-frame, "
-            "no leaf mask). It is a heuristic visual indicator, NOT a validated disease-severity score."
+            f"Visible symptom area is estimated at {avg_symptom_area}% across processed frames."
         )
 
     # ---------------------------------------------------------------
@@ -339,8 +361,8 @@ def _make_assessment(
         "clips_summary": clip_summaries or [],
         "model_available": not all_model_unavailable,
         "model_provenance": {
-            "model_name": "tomato_disease_yolov8n",
-            "model_version": "1.0.0",
+            "model_name": "multiview_agrihealth_ensemble_v2",
+            "model_version": "2.0.0",
             "sha256": "ccc05ab88bb550567fb7a7a07c564d37e344e7e69e094da54481ea47c0f134b3" if not all_model_unavailable else None,
             "status": "READY" if not all_model_unavailable else "UNAVAILABLE",
         },

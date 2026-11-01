@@ -1,14 +1,27 @@
 import os
+import logging
 from pathlib import Path
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
 
 from backend.app.config.settings import settings
 from backend.app.api import health, analyze, scans, analytics, simulation
 from backend.app.api import models_status, plant_sessions, chat, ensemble
+
+# ---------------------------------------------------------------------------
+# Logging configuration
+# ---------------------------------------------------------------------------
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger("agrihealth")
 
 
 
@@ -36,6 +49,8 @@ app = FastAPI(
         "Supports multi-view plant sessions, multi-model ensemble diagnosis, and clinical chatbots."
     ),
     version="2.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
     lifespan=lifespan,
 )
 
@@ -54,6 +69,26 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ---------------------------------------------------------------------------
+# GZip compression for API responses > 1 KB
+# ---------------------------------------------------------------------------
+app.add_middleware(GZipMiddleware, minimum_size=1024)
+
+# ---------------------------------------------------------------------------
+# Request body size limiter — reject uploads over 50 MB at middleware level
+# ---------------------------------------------------------------------------
+_MAX_BODY_BYTES = 50 * 1024 * 1024  # 50 MB
+
+@app.middleware("http")
+async def limit_upload_size(request: Request, call_next):
+    content_length = request.headers.get("content-length")
+    if content_length and int(content_length) > _MAX_BODY_BYTES:
+        return JSONResponse(
+            status_code=413,
+            content={"detail": f"Request body exceeds maximum allowed size of {_MAX_BODY_BYTES // (1024*1024)} MB."},
+        )
+    return await call_next(request)
 
 # ---------------------------------------------------------------------------
 # Register Routers
@@ -98,7 +133,7 @@ def root():
         "documentation": "/docs",
         "health_check": "/api/health",
         "models_status": "/api/models/status",
-        "version": "1.1.0",
+        "version": "2.0.0",
     }
 
 

@@ -56,7 +56,7 @@ export const DiagnosticExplainerCard: React.FC<DiagnosticExplainerCardProps> = (
   preventionText,
   modelProvenance,
   visualLocalization,
-  cropType = 'Tomato',
+  cropType = 'Plant',
 }) => {
   const [activeTab, setActiveTab] = useState<'cultural' | 'organic' | 'chemical' | 'prevention'>('cultural');
   const [showModelDetails, setShowModelDetails] = useState<boolean>(false);

@@ -47,6 +47,8 @@ echo Opening browser to http://localhost:5173...
 echo To stop everything later, run stop_app.bat or close both windows.
 echo.
 
-:: Wait 3 seconds then open browser
-timeout /t 3 /nobreak >nul
+echo Waiting for backend API server to finish initializing...
+powershell -NoProfile -Command "for ($i=0; $i -lt 25; $i++) { try { $r = Invoke-WebRequest -Uri 'http://127.0.0.1:8000/api/models/status' -UseBasicParsing -TimeoutSec 1; if ($r.StatusCode -eq 200) { exit 0 } } catch { Start-Sleep -Milliseconds 800 } }; exit 0"
+
+echo Backend is ready! Opening browser to http://localhost:5173...
 start http://localhost:5173

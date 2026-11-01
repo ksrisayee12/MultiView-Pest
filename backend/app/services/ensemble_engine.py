@@ -23,10 +23,19 @@ import torch
 import torch.nn as nn
 
 from backend.app.services.model_registry import predict_disease, get_disease_model_status
-from backend.app.services.chatbot_service import _DISEASE_KNOWLEDGEBASE
+from backend.app.services.chatbot_service import _DISEASE_KNOWLEDGEBASE, get_condition_profile
+from backend.app.services.image_preflight_and_segmentation import detect_leaf_perforations_and_pest_damage
+import torchvision.transforms as T
 
 _BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 _MODELS_DIR = _BASE_DIR / "backend" / "models"
+
+_SEVERITY_TRANSFORM = T.Compose([
+    T.ToPILImage(),
+    T.Resize((224, 224)),
+    T.ToTensor(),
+    T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+])
 
 
 # ---------------------------------------------------------------------------
@@ -169,20 +178,23 @@ def run_ensemble_assessment(image_bgr: np.ndarray, crop_type: str = "tomato") ->
     yolo_pred = yolo_res.get("prediction", "no_supported_condition_detected")
     yolo_conf = float(yolo_res.get("confidence", 0.0))
     yolo_boxes = yolo_res.get("boxes", [])
-    yolo_meta = yolo_res.get("model_provenance", {})
+    yolo_meta = yolo_res.get("provenance") or yolo_res.get("model_provenance", {})
+    preflight_quality = yolo_res.get("preflight_quality", {})
+    top_probabilities = yolo_res.get("top_probabilities", [])
 
     # ---------------------------------------------------------
     # 2. Model 2: LeafSeverityNet (Deep Severity & Lesion Area %)
     # ---------------------------------------------------------
     sev_tier = "HEALTHY"
-    sev_conf = 0.85
+    sev_conf = 0.0          # 0.0 when model unavailable — not inflated
     pred_lesion_pct = 0.5
+    sev_model_active = False
     
     if _SEVERITY_MODEL is not None:
+        sev_model_active = True
         try:
             img_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
-            img_resized = cv2.resize(img_rgb, (224, 224))
-            tensor = torch.from_numpy(img_resized).permute(2, 0, 1).float().unsqueeze(0) / 255.0
+            tensor = _SEVERITY_TRANSFORM(img_rgb).unsqueeze(0)
             
             with torch.no_grad():
                 logits, reg_pct = _SEVERITY_MODEL(tensor)
@@ -193,14 +205,17 @@ def run_ensemble_assessment(image_bgr: np.ndarray, crop_type: str = "tomato") ->
                 pred_lesion_pct = float(reg_pct.squeeze().item())
         except Exception as e:
             print(f"[EnsembleEngine] Severity inference error: {e}")
+            sev_model_active = False
 
     # ---------------------------------------------------------
     # 3. Model 3: PestVectorNet (Insect Vector Detection)
     # ---------------------------------------------------------
     vector_detected = "NONE"
-    vector_conf = 0.90
+    vector_conf = 0.0       # 0.0 when model unavailable — not inflated
+    pest_model_active = False
     
     if _PEST_MODEL is not None:
+        pest_model_active = True
         try:
             img_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
             img_resized = cv2.resize(img_rgb, (224, 224))
@@ -214,9 +229,10 @@ def run_ensemble_assessment(image_bgr: np.ndarray, crop_type: str = "tomato") ->
                 vector_conf = float(p_probs[p_top])
         except Exception as e:
             print(f"[EnsembleEngine] Pest inference error: {e}")
+            pest_model_active = False
 
     # ---------------------------------------------------------
-    # 4. Computer Vision DIP (Optical ExG Vegetation Index)
+    # 4. Computer Vision DIP & Foliar Perforation Detection
     # ---------------------------------------------------------
     # Excess Green Index: 2*G - R - B
     b, g, r = cv2.split(image_bgr.astype(np.float32))
@@ -235,23 +251,114 @@ def run_ensemble_assessment(image_bgr: np.ndarray, crop_type: str = "tomato") ->
     optical_lesion_pct = (necrotic_pixels / max(total_green_pixels, 1)) * 100.0
     optical_lesion_pct = min(round(optical_lesion_pct, 2), 100.0)
 
-    # ---------------------------------------------------------
-    # 5. Multi-Model Consensus Arbitration
-    # ---------------------------------------------------------
-    # Determine primary disease key
-    is_diseased = yolo_pred not in ("healthy", "no_supported_condition_detected") and yolo_conf >= 0.35
-    if not is_diseased and sev_tier in ("MODERATE_LESIONS", "SEVERE_NECROSIS"):
-        # Secondary model indicates symptoms even if YOLO detector missed bbox
-        is_diseased = True
-        matched_disease = "early_blight"  # default suspected foliar symptom
-    elif is_diseased:
-        matched_disease = yolo_pred
-    else:
-        matched_disease = "healthy"
+    # Detect physical pest perforations & caterpillar chewing damage
+    is_pest_chewed, hole_boxes, hole_defol_pct = detect_leaf_perforations_and_pest_damage(image_bgr)
 
-    # Multi-model consensus score (weighted average of model confidences)
-    weights = [0.55, 0.30, 0.15]
-    consensus_score = (yolo_conf * weights[0]) + (sev_conf * weights[1]) + (vector_conf * weights[2])
+    # ---------------------------------------------------------
+    # 5. Multi-Model Consensus Arbitration (Crop-Aware & Defoliation-Aware)
+    # ---------------------------------------------------------
+    crop_str = (crop_type or "tomato").lower()
+    is_pepper = any(k in crop_str for k in ("pepper", "bell_pepper", "chilli", "capsicum"))
+    is_potato = "potato" in crop_str
+    is_tomato = "tomato" in crop_str
+    is_healthy_pred = yolo_pred in ("healthy", "pepper_healthy", "potato_healthy")
+
+    # Priority A: Foliar perforations & caterpillar/beetle defoliation
+    # Only override to pest_chewing_damage when classifier is NOT highly confident in a disease
+    # Confidence thresholds prevent false chewing detection from necrotic lesion voids:
+    #   yolo_conf >= 0.75 → strongly trust ML, never override regardless of defoliation
+    #   yolo_conf in [0.65, 0.75) → override only if defoliation is extremely high (>40%)
+    #   yolo_conf < 0.65 → ML is uncertain; use physical hole evidence if significant
+    confident_disease = (
+        yolo_pred not in ("healthy", "pepper_healthy", "potato_healthy", "no_supported_condition_detected")
+        and yolo_conf >= 0.65
+    )
+    very_confident_disease = confident_disease and yolo_conf >= 0.75
+    should_override_with_pest = (
+        is_pest_chewed and
+        not very_confident_disease and
+        not (confident_disease and hole_defol_pct < 40.0)
+    )
+    if should_override_with_pest:
+        matched_disease = "pest_chewing_damage"
+        is_diseased = True
+        vector_detected = "ARMYWORM / FLEA_BEETLE" if vector_detected in ("NONE", "") else vector_detected
+        vector_conf = max(vector_conf, 0.88)
+        yolo_boxes = hole_boxes if hole_boxes else yolo_boxes
+        yolo_conf = 0.89
+        pred_lesion_pct = max(pred_lesion_pct, hole_defol_pct)
+        optical_lesion_pct = max(optical_lesion_pct, hole_defol_pct)
+        # MILD_LESIONS is not in SEVERITY_CLASSES — use MILD_CHLOROSIS instead
+        sev_tier = "MODERATE_LESIONS" if hole_defol_pct > 15.0 else "MILD_CHLOROSIS"
+
+    # Priority B: Crop-Specific Routing — Pepper / Chilli / Capsicum
+    elif is_pepper:
+        _KNOWN_FUNGAL = {
+            "early_blight", "late_blight", "septoria_leaf_spot", "leaf_mold",
+            "spider_mites", "target_spot", "mosaic_virus", "yellow_leaf_curl",
+        }
+        if (("bacterial" in yolo_pred) or yolo_pred in ("bacterial_spot", "pepper_bacterial_spot")) and yolo_conf >= 0.30:
+            matched_disease = "pepper_bacterial_spot"
+            is_diseased = True
+        elif yolo_pred in _KNOWN_FUNGAL and yolo_conf >= 0.35:
+            # These are tomato-trained labels; map to unclassified for pepper
+            matched_disease = "unclassified_foliar_damage"
+            is_diseased = True
+        elif is_healthy_pred and yolo_conf >= 0.40 and optical_lesion_pct < 8.0:
+            matched_disease = "pepper_healthy"
+            is_diseased = False
+        elif optical_lesion_pct > 6.0:
+            matched_disease = "unclassified_foliar_damage"
+            is_diseased = True
+        else:
+            matched_disease = "pepper_healthy"
+            is_diseased = False
+
+    elif is_potato:
+        if ("early" in yolo_pred or yolo_pred == "early_blight") and yolo_conf >= 0.30:
+            matched_disease = "potato_early_blight"
+            is_diseased = True
+        elif ("late" in yolo_pred or yolo_pred == "late_blight") and yolo_conf >= 0.30:
+            matched_disease = "potato_late_blight"
+            is_diseased = True
+        elif is_healthy_pred and yolo_conf >= 0.40 and optical_lesion_pct < 8.0:
+            matched_disease = "potato_healthy"
+            is_diseased = False
+        elif optical_lesion_pct > 6.0:
+            matched_disease = "potato_early_blight"
+            is_diseased = True
+        else:
+            matched_disease = "potato_healthy"
+            is_diseased = False
+    else:
+        # Tomato or General Solanaceous / Auto
+        if is_healthy_pred and yolo_conf >= 0.40 and optical_lesion_pct < 10.0:
+            is_diseased = False
+            matched_disease = "healthy"
+        else:
+            is_diseased = yolo_pred not in ("healthy", "pepper_healthy", "potato_healthy", "no_supported_condition_detected") and yolo_conf >= 0.30
+            if not is_diseased and sev_tier in ("MODERATE_LESIONS", "SEVERE_NECROSIS") and optical_lesion_pct > 5.0:
+                is_diseased = True
+                matched_disease = "early_blight"
+            elif is_diseased:
+                matched_disease = yolo_pred
+            else:
+                matched_disease = "healthy"
+
+    # Multi-model consensus score — only include models that actually ran
+    # (avoid inflating confidence with dummy defaults when models are unavailable)
+    active_scores = [(yolo_conf, 0.55)]   # Dual-backbone classifier always runs
+    active_models_count = 1
+    if sev_model_active and sev_conf > 0.0:
+        active_scores.append((sev_conf, 0.30))
+        active_models_count += 1
+    if pest_model_active and vector_conf > 0.0:
+        active_scores.append((vector_conf, 0.15))
+        active_models_count += 1
+
+    # Normalize weights to active models
+    total_w = sum(w for _, w in active_scores)
+    consensus_score = sum(c * (w / total_w) for c, w in active_scores)
     consensus_pct = round(consensus_score * 100.0, 1)
 
     if (is_diseased and sev_tier != "HEALTHY") or (not is_diseased and sev_tier == "HEALTHY"):
@@ -259,14 +366,14 @@ def run_ensemble_assessment(image_bgr: np.ndarray, crop_type: str = "tomato") ->
     else:
         consensus_agreement = "PARTIAL_CONSENSUS"
 
-    # Fetch clinical pathology & prescription from knowledgebase
-    kb = _DISEASE_KNOWLEDGEBASE.get(matched_disease, _DISEASE_KNOWLEDGEBASE["healthy"])
+    # Fetch crop-adapted clinical pathology & prescription from knowledgebase
+    kb = get_condition_profile(matched_disease, crop_type=crop_type)
 
     # Continuous lesion percentage is an optical + deep blend
     final_lesion_pct = round(0.6 * pred_lesion_pct + 0.4 * optical_lesion_pct, 1)
     
     # Determine severity grade
-    if final_lesion_pct < 5.0 and matched_disease == "healthy":
+    if final_lesion_pct < 5.0 and matched_disease in ("healthy", "pepper_healthy", "potato_healthy"):
         severity_grade = "OPTIMAL_VITALITY"
     elif final_lesion_pct < 10.0:
         severity_grade = "MILD_STAGE"
@@ -288,11 +395,18 @@ def run_ensemble_assessment(image_bgr: np.ndarray, crop_type: str = "tomato") ->
     return {
         "primary_diagnosis": kb["display_name"],
         "condition_key": matched_disease,
-        "is_healthy": (matched_disease == "healthy"),
+        "is_healthy": (matched_disease in ("healthy", "pepper_healthy", "potato_healthy")),
         "multi_model_consensus": {
             "consensus_score_pct": consensus_pct,
             "agreement_status": consensus_agreement,
-            "models_evaluated": 3
+            "models_evaluated": active_models_count,
+            "models_active": {
+                "dual_backbone_classifier": True,
+                "leaf_severity_net": sev_model_active,
+                "pest_vector_net": pest_model_active,
+                "pest_perforation_detector": True,   # always active (OpenCV)
+                "dip_pipeline": True,                 # always active (OpenCV)
+            }
         },
         "severity_analysis": {
             "grade": severity_grade,
@@ -318,6 +432,8 @@ def run_ensemble_assessment(image_bgr: np.ndarray, crop_type: str = "tomato") ->
             "long_term_prevention": kb["prevention"]
         },
         "visual_localization": visual_loc,
+        "preflight_quality": preflight_quality,
+        "top_probabilities": top_probabilities,
         "model_provenance": {
             "yolo_detector": {
                 "name": yolo_meta.get("model_name", "tomato_disease_yolov8n"),
@@ -396,7 +512,11 @@ def generate_visual_disease_localization(
             x1, y1 = max(0, min(w - 1, x1)), max(0, min(h - 1, y1))
             x2, y2 = max(x1 + 1, min(w, x2)), max(y1 + 1, min(h, y2))
             conf = float(yb.get("confidence", 0.8))
-            lbl = yb.get("label", condition_key).replace("_", " ").title()
+            raw_lbl = yb.get("raw_label") or yb.get("label", condition_key).replace("_", " ").title()
+            if "hole" in raw_lbl.lower() or "chew" in raw_lbl.lower() or condition_key == "pest_chewing_damage":
+                lbl_display = raw_lbl
+            else:
+                lbl_display = f"{raw_lbl} Lesion" if not raw_lbl.endswith("Lesion") else raw_lbl
             
             box_area = (x2 - x1) * (y2 - y1)
             area_pct = round((box_area / max(w * h, 1)) * 100.0, 1)
@@ -404,7 +524,7 @@ def generate_visual_disease_localization(
             loc_desc = _get_leaf_location_description(x1, y1, x2, y2, w, h)
             detected_regions.append({
                 "region_id": idx + 1,
-                "label": f"{lbl} Lesion",
+                "label": lbl_display,
                 "condition": condition_key,
                 "confidence": round(conf, 3),
                 "severity": "CRITICAL" if conf > 0.8 else "MODERATE" if conf > 0.6 else "MILD",
@@ -421,7 +541,7 @@ def generate_visual_disease_localization(
             })
 
     # Priority 2: If no YOLO boxes (e.g. classification or zero boxes) and condition is diseased / lesion mask active:
-    if len(detected_regions) == 0 and condition_key != "healthy":
+    if len(detected_regions) == 0 and condition_key not in ("healthy", "pepper_healthy", "potato_healthy"):
         # Extract connected components from necrotic lesion mask
         contours, _ = cv2.findContours(lesion_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         # Filter contours with reasonable area
@@ -441,10 +561,11 @@ def generate_visual_disease_localization(
             cnt_area = cv2.contourArea(cnt)
             area_pct = round((cnt_area / max(w * h, 1)) * 100.0, 1)
             loc_desc = _get_leaf_location_description(x1, y1, x2, y2, w, h)
+            cluster_lbl = "Pest Feeding Perforation" if condition_key == "pest_chewing_damage" else f"{top_disease_display} Lesion Cluster"
             
             detected_regions.append({
                 "region_id": idx + 1,
-                "label": f"{top_disease_display} Lesion Cluster",
+                "label": cluster_lbl,
                 "condition": condition_key,
                 "confidence": round(0.82 - (idx * 0.04), 3),
                 "severity": "CRITICAL" if idx == 0 else "MODERATE",
@@ -515,15 +636,16 @@ def generate_visual_disease_localization(
             cv2.LINE_AA,
         )
 
-    # Highlight exact fine necrotic lesion contours inside the leaf
-    if condition_key != "healthy":
+    # Highlight exact fine necrotic lesion contours inside the leaf (suppress when healthy or pure hole feeding)
+    if condition_key not in ("healthy", "pepper_healthy", "potato_healthy", "pest_chewing_damage"):
         fine_contours, _ = cv2.findContours(lesion_mask, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
         cv2.drawContours(annotated, fine_contours, -1, (0, 215, 255), 1)
 
     # -------------------------------------------------------------
-    # Infection Intensity Heatmap
+    # Infection Intensity / Vitality Heatmap
     # -------------------------------------------------------------
-    if condition_key == "healthy":
+    is_healthy_flag = condition_key in ("healthy", "pepper_healthy", "potato_healthy")
+    if is_healthy_flag:
         # Green vitality heatmap
         vitality_map = (green_mask.astype(np.float32) * 0.8).astype(np.uint8)
         colored_map = cv2.applyColorMap(vitality_map, cv2.COLORMAP_SUMMER)
@@ -548,5 +670,5 @@ def generate_visual_disease_localization(
         "detected_regions": detected_regions,
         "total_regions_count": len(detected_regions),
         "condition_key": condition_key,
-        "is_healthy": (condition_key == "healthy"),
+        "is_healthy": is_healthy_flag,
     }

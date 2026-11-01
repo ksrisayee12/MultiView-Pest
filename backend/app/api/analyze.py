@@ -148,7 +148,7 @@ async def analyze_field(file: Optional[UploadFile] = File(None)):
     priority_list = generate_priority_list(tile_results)
 
     scan_summary = {
-        "crop": "Tomato",
+        "crop": "Tomato",  # legacy field endpoint — crop type not yet configurable per scan
         "image_name": filename,
         "total_tiles": len(tile_results),
         "healthy_tiles": sum(1 for t in tile_results if t["fusion_status"] == "HEALTHY"),

@@ -48,7 +48,7 @@ interface VisualDiseaseLocalizationProps {
 
 export const VisualDiseaseLocalization: React.FC<VisualDiseaseLocalizationProps> = ({
   visualData,
-  cropType = 'Tomato',
+  cropType = 'Plant',
   diseaseName,
   onUploadCustomLeaf,
   isLoading = false,

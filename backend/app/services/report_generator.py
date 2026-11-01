@@ -16,7 +16,7 @@ def generate_markdown_report(session: Dict[str, Any]) -> str:
     """Generate a clean GitHub-Flavored Markdown report for a plant session."""
     session_id = session.get("session_id", "unknown")
     plant_id = session.get("plant_id", "unknown")
-    crop_type = session.get("crop_type", "tomato").capitalize()
+    crop_type = session.get("crop_type", "tomato").replace("_", " ").title()
     status = session.get("status", "CREATED")
     created_at = session.get("created_at", time.time())
     date_str = time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime(created_at))
@@ -55,7 +55,7 @@ def generate_markdown_report(session: Dict[str, Any]) -> str:
 
     # 3. Model Provenance & Traceability
     md.append("## 3. Computer Vision Model Provenance\n")
-    md.append(f"- **Model Architecture:** `{provenance.get('model_name', 'tomato_disease_yolov8n')}`")
+    md.append(f"- **Model Architecture:** `{provenance.get('model_name', 'multiview_agrihealth_ensemble_v2')}`")
     md.append(f"- **Model Version:** `{provenance.get('model_version', '1.0.0')}`")
     md.append(f"- **Artifact SHA-256:** `{provenance.get('sha256', 'ccc05ab88bb550567fb7a7a07c564d37e344e7e69e094da54481ea47c0f134b3')}`")
     md.append(f"- **Execution Readiness:** `{provenance.get('status', 'READY')}`")

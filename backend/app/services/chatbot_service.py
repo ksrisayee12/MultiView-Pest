@@ -173,13 +173,13 @@ _DISEASE_KNOWLEDGEBASE: Dict[str, Dict[str, Any]] = {
         )
     },
     "healthy": {
-        "display_name": "Healthy Tomato Foliage (Optimum Vitality)",
+        "display_name": "Healthy Foliage (Optimum Vitality)",
         "pathogen": "None detected (Normal Botanical Function)",
         "causes": "Balanced nutrition, optimal irrigation, adequate spacing, and absence of pathogenic foliar lesions.",
-        "symptoms": "Uniform deep green leaf lamina, turgid petioles, normal leaflet margins without necrotic spotting or viral chlorosis.",
+        "symptoms": "Uniform deep green leaf lamina, turgid petioles, normal leaflet margins without necrotic spotting, viral chlorosis, or insect feeding holes.",
         "treatment_cultural": [
             "Maintain standard drip irrigation schedule (1.5 to 2.0 inches per week depending on soil evapotranspiration).",
-            "Ensure regular balanced fertilization (N-P-K 5-10-10 or 10-10-10 plus trace calcium to prevent blossom end rot).",
+            "Ensure regular balanced fertilization (N-P-K 5-10-10 or 10-10-10 plus trace calcium to prevent deficiency).",
             "Sucker lower indeterminate growth to encourage upward airflow."
         ],
         "treatment_organic": [
@@ -193,8 +193,305 @@ _DISEASE_KNOWLEDGEBASE: Dict[str, Dict[str, Any]] = {
             "Continue routine weekly scoutings of upper and underside foliage. "
             "Keep soil mulch barrier intact to prevent future soil-borne pathogen splash."
         )
+    },
+    "pest_chewing_damage": {
+        "display_name": "Foliar Pest Chewing & Defoliation Damage",
+        "pathogen": "Chewing Insect Herbivores (Caterpillars / Flea Beetles / Cutworms / Hornworms)",
+        "causes": (
+            "Direct foliar consumption by phytophagous insect larvae (e.g. Spodoptera armyworms, loopers, Manduca hornworms) "
+            "or adult flea beetles piercing leaf laminae and creating physical feeding holes."
+        ),
+        "symptoms": (
+            "Irregular circular perforations through the leaf blade (shot-hole damage), ragged scalloped leaf margins, "
+            "and localized insect frass droppings, without concentric fungal rings or bacterial water-soaked lesions."
+        ),
+        "treatment_cultural": [
+            "Hand-pick visible caterpillars and larvae from the undersides of leaves during early morning or twilight hours.",
+            "Install insect exclusion netting (mesh size < 0.8 mm) or floating row covers over beds to prevent oviposition.",
+            "Weed host areas surrounding planting beds and till soil lightly post-harvest to expose pupae to predatory birds."
+        ],
+        "treatment_organic": [
+            "Foliar spray of Bacillus thuringiensis (Bt subsp. kurstaki) @ 2.0 - 2.5 g/L during active early-instar larval feeding.",
+            "Cold-pressed Neem Oil (0.5% Azadirachtin) @ 5 mL/L with mild surfactant for feeding deterrence and growth inhibition.",
+            "Spinosad biological spray @ 0.5 mL/L targeting canopy undersides where young larvae feed."
+        ],
+        "treatment_chemical": [
+            "Chlorantraniliprole (Coragen / Rynaxypyr) @ 0.3 mL/L for targeted ovi-larvicidal protection with low beneficial insect impact.",
+            "Emamectin Benzoate (5% SG) @ 0.4 g/L for rapid knock-down of chewing lepidopteran caterpillars.",
+            "Lambda-cyhalothrin @ 1.0 mL/L as a rescue foliar treatment if severe defoliation exceeds 20% of canopy."
+        ],
+        "prevention": (
+            "Erect pheromone and yellow sticky traps to monitor adult moth and beetle flights before egg laying begins. "
+            "Encourage natural predators including parasitic wasps (Trichogramma), predatory stink bugs, and assassin bugs."
+        )
+    },
+    "pepper_bacterial_spot": {
+        "display_name": "Pepper Bacterial Spot (Xanthomonas euvesicatoria)",
+        "pathogen": "Xanthomonas campestris pv. vesicatoria / X. euvesicatoria",
+        "causes": (
+            "Seed-borne or wind-splashed bacterial pathogen thriving in warm (24-30°C), humid, and wet rainy conditions."
+        ),
+        "symptoms": (
+            "Small, water-soaked, circular to irregular dark brown spots on pepper leaves that turn necrotic with raised margins and chlorotic halos, causing premature defoliation."
+        ),
+        "treatment_cultural": [
+            "Use certified pathogen-free pepper seeds and hot-water treated seeds (50°C for 25 minutes).",
+            "Avoid overhead sprinkler irrigation; convert to subsurface drip irrigation to keep foliage completely dry.",
+            "Immediately rogue out and destroy severely infected pepper plants; do not compost."
+        ],
+        "treatment_organic": [
+            "Fixed copper hydroxide / copper octanoate sprays @ 2-3 g/L weekly during wet periods.",
+            "Bacillus subtilis / B. amyloliquefaciens foliar biofungicides as protective bio-barriers."
+        ],
+        "treatment_chemical": [
+            "Copper Hydroxide + Mancozeb tank mix (2.5 g/L + 2.0 g/L) to manage copper-tolerant Xanthomonas strains.",
+            "Kasugamycin or Streptomycin sulphate where permitted by local agricultural regulations for greenhouse transplants."
+        ],
+        "prevention": (
+            "Enforce strict 2-3 year rotation away from solanaceous crops (peppers, tomatoes, eggplants). "
+            "Disinfect staking, cages, pruning shears, and greenhouse trays with 10% sodium hypochlorite."
+        )
+    },
+    "pepper_healthy": {
+        "display_name": "Healthy Pepper / Chilli Foliage (Optimum Vitality)",
+        "pathogen": "None detected (Healthy Pepper / Chilli Foliage)",
+        "causes": "Optimal soil nutrients, balanced nitrogen-phosphorus-potassium, and proper solar radiation.",
+        "symptoms": "Vibrant green, uniform leaf blades without chlorosis, necrotic spotting, or feeding perforations.",
+        "treatment_cultural": [
+            "Maintain consistent soil moisture and adequate calcium nutrition to prevent blossom-end rot.",
+            "Provide light shade netting during extreme midday heat peaks above 35°C."
+        ],
+        "treatment_organic": [
+            "Apply balanced organic seaweed extract and fish emulsion every 2 weeks.",
+            "Maintain neem oil preventative barrier on foliage."
+        ],
+        "treatment_chemical": [
+            "No chemical intervention required."
+        ],
+        "prevention": (
+            "Routine canopy scouting and prophylactic neem oil maintenance. Maintain clean weed-free perimeter."
+        )
+    },
+    "potato_early_blight": {
+        "display_name": "Potato Early Blight (Alternaria solani)",
+        "pathogen": "Alternaria solani (Fungal Deuteromycete)",
+        "causes": (
+            "Fungal spores surviving on crop debris, spread by wind, insects, and rain splashing under alternating wet and dry conditions."
+        ),
+        "symptoms": (
+            "Dark brown to black lesions with characteristic concentric target-board rings on older potato leaflets, surrounded by yellow chlorotic halos."
+        ),
+        "treatment_cultural": [
+            "Ensure adequate nitrogen and potassium fertility to avoid plant stress; destroy infected haulms before tuber harvest.",
+            "Maintain wide plant spacing to accelerate canopy drying."
+        ],
+        "treatment_organic": [
+            "Bordeaux mixture (1%) or bio-control with Trichoderma harzianum soil and foliar drench.",
+            "Liquid copper octanoate protectant."
+        ],
+        "treatment_chemical": [
+            "Azoxystrobin (250 SC) @ 1 mL/L or Difenoconazole @ 0.5 mL/L rotated with Chlorothalonil protectant.",
+            "Mancozeb 75% WP @ 2.0 g/L preventative spray."
+        ],
+        "prevention": (
+            "Plant certified disease-free seed tubers and adhere to a 3-year potato rotation away from nightshade crops."
+        )
+    },
+    "potato_late_blight": {
+        "display_name": "Potato Late Blight (Phytophthora infestans)",
+        "pathogen": "Phytophthora infestans (Oomycete)",
+        "causes": (
+            "Cool (15-20°C), saturated, high-humidity weather with rain or persistent dew."
+        ),
+        "symptoms": (
+            "Rapidly expanding water-soaked pale-green to brown lesions on potato foliage with white fluffy fungal mildew on leaf undersides in high humidity."
+        ),
+        "treatment_cultural": [
+            "Hill up potato rows with soil to form a thick barrier protecting underground tubers from wash-down sporangia; burn blighted vines before digging.",
+            "Destroy volunteer potato plants and cull piles within 1 km."
+        ],
+        "treatment_organic": [
+            "Preventative copper hydroxide sprays @ 2.5 g/L every 5-7 days under wet forecast.",
+            "Potassium phosphite foliar SAR stimulator."
+        ],
+        "treatment_chemical": [
+            "Metalaxyl-M + Mancozeb (Ridomil Gold) @ 2.5 g/L or Dimethomorph @ 1.5 g/L curative systemic spray.",
+            "Cyazofamid or Mandipropamid anti-oomycete applications."
+        ],
+        "prevention": (
+            "Plant late-blight resistant potato cultivars and monitor regional blight warning networks."
+        )
+    },
+    "potato_healthy": {
+        "display_name": "Healthy Potato Foliage (Optimum Vitality)",
+        "pathogen": "None detected (Healthy Potato Foliage)",
+        "causes": "Optimal tuber bulking conditions with balanced soil nutrition.",
+        "symptoms": "Lush compound leaves, uniform green coloration, and vigorous vegetative growth without lesion blight.",
+        "treatment_cultural": [
+            "Regular hilling up around potato stems to shield tubers and retain moisture.",
+            "Maintain moderate, consistent drip fertigation."
+        ],
+        "treatment_organic": [
+            "Compost tea root zone conditioning."
+        ],
+        "treatment_chemical": [
+            "No chemical treatment required."
+        ],
+        "prevention": (
+            "Strict 3-year crop rotation and use of certified seed tubers."
+        )
+    },
+    "leaf_mold": {
+        "display_name": "Leaf Mold (Passalora fulva)",
+        "pathogen": "Passalora fulva (syn. Cladosporium fulvum)",
+        "causes": "High relative humidity (>85%) and poor air circulation in greenhouse or dense canopy environments.",
+        "symptoms": "Pale greenish-yellow spots on upper leaf surfaces matching olive-green to velvety brown mold growth on lower leaf surfaces.",
+        "treatment_cultural": [
+            "Increase greenhouse ventilation and run exhaust fans to reduce relative humidity below 80%.",
+            "Prune lower canopy leaves and thin excessive foliage to increase light penetration."
+        ],
+        "treatment_organic": [
+            "Potassium bicarbonate (3-5 g/L) or copper octanoate foliar spray.",
+            "Bacillus subtilis bio-fungicide."
+        ],
+        "treatment_chemical": [
+            "Difenoconazole @ 0.5 mL/L or Cyprodinil + Fludioxonil protectant.",
+            "Chlorothalonil preventative barrier."
+        ],
+        "prevention": (
+            "Plant resistant varieties containing Cf resistance genes; keep canopy dry through night hours."
+        )
+    },
+    "spider_mites": {
+        "display_name": "Two-Spotted Spider Mite Infestation (Tetranychus urticae)",
+        "pathogen": "Tetranychus urticae (Phytophagous Arachnid)",
+        "causes": "Hot, dry, dusty environmental conditions triggering rapid spider mite population growth.",
+        "symptoms": "Fine pale-yellow stippling / chlorotic speckling on upper leaf surfaces, fine silken webbing under leaves, leaf bronzing.",
+        "treatment_cultural": [
+            "Misting or sprinkler washing of dusty roadways and garden margins to lower dust stress.",
+            "Prune and dispose of heavily webbed shoot tips immediately."
+        ],
+        "treatment_organic": [
+            "Release predatory mites (Phytoseiulus persimilis or Neoseiulus californicus).",
+            "Cold-pressed neem oil (1%) or insecticidal potassium salts of fatty acids."
+        ],
+        "treatment_chemical": [
+            "Spiromesifen (Oberon) @ 1 mL/L or Abamectin (1.8% EC) @ 0.5 mL/L targeting leaf undersides.",
+            "Bifenazate (Acramite) selective miticide."
+        ],
+        "prevention": (
+            "Avoid broad-spectrum synthetic pyrethroids that destroy beneficial mite predators."
+        )
+    },
+    "target_spot": {
+        "display_name": "Target Spot (Corynespora cassiicola)",
+        "pathogen": "Corynespora cassiicola (Fungal Pathogen)",
+        "causes": "Warm temperatures (20-28°C) accompanied by extended periods of high humidity and leaf moisture.",
+        "symptoms": "Pinpoint brown necrotic lesions expanding into circular spots with concentric rings and distinct yellow halos.",
+        "treatment_cultural": [
+            "Improve row spacing and prune lower leaves to optimize canopy drying.",
+            "Avoid overhead irrigation."
+        ],
+        "treatment_organic": [
+            "Copper oxychloride @ 2.5 g/L or sulfur-based protectants.",
+            "Bio-fungicides based on Bacillus amyloliquefaciens."
+        ],
+        "treatment_chemical": [
+            "Pyraclostrobin + Boscalid @ 1 g/L or Azoxystrobin @ 1 mL/L.",
+            "Chlorothalonil protectant."
+        ],
+        "prevention": (
+            "Implement a 2-year non-solanaceous crop rotation and maintain clean organic mulch."
+        )
+    },
+    "mosaic_virus": {
+        "display_name": "Mosaic Virus (ToMV / TMV)",
+        "pathogen": "Tobacco Mosaic / Tomato Mosaic Tobamovirus",
+        "causes": "Mechanical transmission via workers' hands, contaminated tools, tobacco products, and seeds.",
+        "symptoms": "Mottled light and dark green mosaic patterns on foliage, leaf distortion, blistering, shoestring leaves, and stunted growth.",
+        "treatment_cultural": [
+            "Immediately rogue out infected plants in sealed plastic bags; prohibit smoking or tobacco handling around plants.",
+            "Disinfect all tools and stakes in 20% nonfat dry milk or 10% TSP solution."
+        ],
+        "treatment_organic": [
+            "Milk spray (20% nonfat milk in water) during handling to inactivate tobamovirus particles on hands."
+        ],
+        "treatment_chemical": [
+            "No chemical cure exists for plant viruses; infected plants must be eliminated to protect adjacent crops."
+        ],
+        "prevention": (
+            "Select certified virus-resistant varieties (Tm-2 or Tm-2^2 resistance alleles)."
+        )
+    },
+    "unclassified_foliar_damage": {
+        "display_name": "Unclassified Foliar Stress / Feeding Damage",
+        "pathogen": "Mechanical Abrasion, Environmental Stress, or Incipient Pest Feeding",
+        "causes": "Physical leaf wounding, wind/hail friction, or non-specific foliar abiotic stress.",
+        "symptoms": "Atypical leaf tears, physical perforations, or superficial chlorosis without concentric fungal rings or bacterial halos.",
+        "treatment_cultural": [
+            "Inspect surrounding canopy for active insect presence or physical abrasion sources.",
+            "Ensure regular irrigation and avoid drought or nutrient extremes."
+        ],
+        "treatment_organic": [
+            "Apply preventative cold-pressed neem oil @ 5 mL/L as a protective feeding barrier."
+        ],
+        "treatment_chemical": [
+            "No chemical fungicides needed unless clear fungal sporulation develops."
+        ],
+        "prevention": (
+            "Maintain balanced fertigation and re-inspect foliage in 48 hours to confirm condition stability."
+        )
     }
 }
+
+
+def get_condition_profile(condition_key: str, crop_type: str = "tomato") -> Dict[str, Any]:
+    """
+    Returns the comprehensive clinical pathology profile for a condition key,
+    dynamically adapted to the specified crop type so non-tomato crops never
+    receive hardcoded tomato nomenclature.
+    """
+    c_lower = (crop_type or "tomato").lower()
+    crop_display = (
+        "Pepper / Chilli" if any(p in c_lower for p in ("pepper", "chilli", "capsicum"))
+        else "Potato" if "potato" in c_lower
+        else "Tomato" if "tomato" in c_lower
+        else "Plant"
+    )
+
+    # 1. Match direct key
+    if condition_key in _DISEASE_KNOWLEDGEBASE:
+        kb = dict(_DISEASE_KNOWLEDGEBASE[condition_key])
+    else:
+        # Check normalized aliases
+        alias_map = {
+            "earlyblight": "early_blight",
+            "lateblight": "late_blight",
+            "septoria": "septoria_leaf_spot",
+            "bacterialspot": "bacterial_spot",
+            "tylcv": "yellow_leaf_curl",
+            "leafmold": "leaf_mold",
+            "spidermites": "spider_mites",
+            "targetspot": "target_spot",
+            "mosaic": "mosaic_virus",
+            "chewing": "pest_chewing_damage",
+            "holes": "pest_chewing_damage",
+            "pest": "pest_chewing_damage",
+        }
+        matched_k = alias_map.get(condition_key.replace("_", "").lower(), "healthy")
+        kb = dict(_DISEASE_KNOWLEDGEBASE.get(matched_k, _DISEASE_KNOWLEDGEBASE["healthy"]))
+
+    # 2. Dynamic crop adaptation for healthy and general profiles
+    if condition_key in ("healthy", "pepper_healthy", "potato_healthy"):
+        kb["display_name"] = f"Healthy {crop_display} Foliage (Optimum Vitality)"
+        kb["pathogen"] = f"None detected (Healthy {crop_display} Foliage)"
+    elif condition_key == "pest_chewing_damage":
+        kb["display_name"] = f"{crop_display} Pest Chewing & Defoliation Damage"
+    elif condition_key == "unclassified_foliar_damage":
+        kb["display_name"] = f"{crop_display} Foliar Stress / Irregularity"
+
+    return kb
+
 
 
 def _get_groq_api_key() -> str:
@@ -218,7 +515,14 @@ _PLANT_TERMS = {
     "garden", "greenhouse", "agriculture", "agronomy", "botany", "seed",
     "seedling", "chlorosis", "necrosis", "lesion", "spore", "pathogen", "cure",
     "spray", "neem", "copper", "mancozeb", "chlorothalonil", "nitrogen", "calcium",
-    "phosphorus", "potassium", "ph", "mulch", "yield", "canopy", "stunt", "wilt"
+    "phosphorus", "potassium", "ph", "mulch", "yield", "canopy", "stunt", "wilt",
+    # Crop-type expansions (pepper, chilli, potato, etc.)
+    "pepper", "chilli", "chili", "capsicum", "potato", "paprika", "eggplant",
+    "nightshade", "solanaceous", "solanum", "lycopersicon", "tuberosum",
+    "herbicide", "insecticide", "miticide", "fungal", "oomycete", "nematode",
+    "drip", "fertigation", "mulching", "intercrop", "rotation", "tillage",
+    "horticulture", "defoliation", "perforation", "feeding", "infestation",
+    "armyworm", "hornworm", "flea", "cutworm", "thrip", "mite", "whitefly",
 }
 
 _FORBIDDEN_DOMAINS = [
@@ -258,13 +562,10 @@ def is_plant_related(text: str) -> bool:
 # Groq Candidate Models & Resilient Fallback Engine
 # ---------------------------------------------------------------------------
 _GROQ_CANDIDATE_MODELS = [
-    "openai/gpt-oss-120b",
-    "openai/gpt-oss-20b",
-    "qwen/qwen3.8-27b",
-    "llama-3.1-70b-versatile",
-    "llama-3.1-8b-instant",
     "llama-3.3-70b-versatile",
+    "llama-3.1-70b-versatile",
     "llama3-70b-8192",
+    "llama-3.1-8b-instant",
     "llama3-8b-8192",
     "mixtral-8x7b-32768",
 ]
@@ -372,8 +673,16 @@ async def query_general_plant_bot(message: str, history: Optional[List[Dict[str,
         "1. You ONLY answer questions related to plants, botany, crop cultivation, agricultural pests, "
         "soil chemistry, plant pathology, irrigation, fertilizers, and greenhouse farming.\n"
         "2. If the user asks ANY question outside of plants and agriculture, you MUST decline with:\n"
-        "'I am AgriHealth Advisor, specialized exclusively in plant science and crop health. I cannot answer queries outside the botanical and agricultural domain.'\n"
-        "3. Provide clear, practical, scientifically accurate recommendations with bullet points and bold headers."
+        "'I am AgriHealth Advisor, specialized exclusively in plant science and crop health. I cannot answer queries outside the botanical and agricultural domain.'\n\n"
+        "MANDATORY OUTPUT FORMATTING RULES:\n"
+        "- Structure your responses using rich Markdown: '## Primary Topics' and '### Subsections'.\n"
+        "- Use bold attribute lead-ins: '- **Technique:** ...', '- **Dosage:** ...', '- **Timing:** ...'.\n"
+        "- When presenting plant lists, schedules, or spray programs, ALWAYS format them as clean Markdown tables with headers, ensuring every table row is on its own separate line:\n"
+        "  | Crop / Stage | Recommendation | Method / Dosage | Timing & Benefits |\n"
+        "  |---|---|---|---|\n"
+        "  | Item 1 | Description | Application rate | When to apply |\n"
+        "- Use checkboxes for action checklists: '- [ ] Practical step'.\n"
+        "- Never concatenate table rows onto one line. Use double line breaks between paragraphs."
     )
 
     messages = [{"role": "system", "content": system_prompt}]
@@ -431,15 +740,8 @@ async def query_disease_treatment_bot(
     
     # Extract clinical context
     disease_key = str(context.get("disease_name", "healthy")).strip().lower()
-    # Normalize key
-    matched_key = "healthy"
-    for k in _DISEASE_KNOWLEDGEBASE:
-        if k in disease_key:
-            matched_key = k
-            break
-            
-    kb = _DISEASE_KNOWLEDGEBASE.get(matched_key, _DISEASE_KNOWLEDGEBASE["healthy"])
     crop_type = context.get("crop_type", "Tomato")
+    kb = get_condition_profile(disease_key, crop_type=crop_type)
     confidence = context.get("confidence", 0.0)
     severity = context.get("severity", "Moderate")
     lesion_pct = context.get("lesion_percentage", 12.5)
@@ -497,8 +799,16 @@ async def query_disease_treatment_bot(
         f"   - Step-by-step cure, recovery, and disease eradication.\n"
         f"   - Specific cultural sanitization, organic biocontrols, and chemical fungicides/active ingredients.\n"
         f"   - Dosages, application timing, intervals, and resistance management (FRAC rotations).\n"
-        f"3. If the user asks about an unrelated non-agricultural topic, decline firmly: 'This clinical consultation is locked to the active diagnosis of {kb['display_name']}. I can only provide guidance on its etiology, causal pathogen, treatment protocols, and preventative management.'\n"
-        f"4. Format your advice clearly with structured headings, actionable numbered steps, and safety advisories."
+        f"3. If the user asks about an unrelated non-agricultural topic, decline firmly: 'This clinical consultation is locked to the active diagnosis of {kb['display_name']}. I can only provide guidance on its etiology, causal pathogen, treatment protocols, and preventative management.'\n\n"
+        f"MANDATORY OUTPUT FORMATTING RULES:\n"
+        f"- Structure your output using clear Markdown headers: '## Primary Section' and '### Specific Protocol'.\n"
+        f"- Always use bold lead-in tags for attributes: '- **Etiology:** ...', '- **Recommended Active:** ...', '- **Rate:** ...'.\n"
+        f"- When presenting schedules, spray programs, or product comparisons, ALWAYS format them as a clean Markdown table with headers, and ensure EVERY row is separated by a newline:\n"
+        f"  | Stage / Week | Product Type | Active Ingredient | Application Rate | Application Timing | Remarks |\n"
+        f"  |---|---|---|---|---|---|\n"
+        f"  | Stage 1 | Foliar Protectant | Copper Hydroxide | 2 L/ha | Early morning | Preventative barrier |\n"
+        f"- Use checklists for immediate tasks: '- [ ] Step to complete'.\n"
+        f"- Separate distinct paragraphs with blank lines for clean layout rendering."
     )
 
     messages = [{"role": "system", "content": system_prompt}]
