@@ -606,7 +606,11 @@ def _run_analysis_sync(session_id: str):
             updated_clips.append(clip)
             continue
 
-        clip_obs, final_clip_meta = process_clip(clip, sample_fps=clip.get("sample_fps", 2.0))
+        clip_obs, final_clip_meta = process_clip(
+            clip,
+            sample_fps=clip.get("sample_fps", 2.0),
+            crop_type=session.get("crop_type", "tomato"),
+        )
         all_observations.extend(clip_obs)
         updated_clips.append(final_clip_meta)
 

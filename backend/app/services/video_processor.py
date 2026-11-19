@@ -90,27 +90,65 @@ def make_frame_observation(
     timestamp_sec: float,
     view_label: str,
     frame_bgr: np.ndarray,
+    crop_type: str = "tomato",
 ) -> Dict[str, Any]:
-    """Create a frame observation dict — runs OpenCV analysis immediately."""
+    """Create a frame observation dict — runs DIP, dual-backbone AI, and foliar perforation detection."""
     from backend.image_processing.visual_health import analyze_visual_health
     from backend.app.services.model_registry import predict_disease
+    from backend.app.services.image_preflight_and_segmentation import detect_leaf_perforations_and_pest_damage
 
     dip = analyze_visual_health(frame_bgr)
     yolo = predict_disease(frame_bgr)
+    
+    pred = yolo["prediction"]
+    conf = float(yolo["confidence"])
+    
+    # Run physical insect feeding hole and perforation detection on the frame
+    is_pest_chewed, hole_boxes, hole_defol_pct = detect_leaf_perforations_and_pest_damage(frame_bgr)
+    
+    # Priority A: Pest chewing override if physical feeding perforations are verified
+    known_fungal = {
+        "early_blight", "late_blight", "septoria_leaf_spot", "bacterial_spot",
+        "pepper_bacterial_spot", "potato_early_blight", "potato_late_blight",
+        "leaf_mold", "spider_mites", "target_spot", "mosaic_virus", "yellow_leaf_curl"
+    }
+    is_confident_disease = (pred in known_fungal) and (conf >= 0.40)
+    
+    if is_pest_chewed and (not is_confident_disease or hole_defol_pct >= 25.0):
+        pred = "pest_chewing_damage"
+        conf = 0.88
+
+    # Priority B: Crop-aware taxonomy adaptation
+    c_str = (crop_type or "tomato").lower()
+    if any(k in c_str for k in ("pepper", "bell_pepper", "chilli", "capsicum")):
+        if "bacterial" in pred or pred in ("bacterial_spot", "pepper_bacterial_spot"):
+            pred = "pepper_bacterial_spot"
+        elif pred == "healthy":
+            pred = "pepper_healthy"
+    elif "potato" in c_str:
+        if "early" in pred or pred == "early_blight":
+            pred = "potato_early_blight"
+        elif "late" in pred or pred == "late_blight":
+            pred = "potato_late_blight"
+        elif pred == "healthy":
+            pred = "potato_healthy"
 
     return {
         "clip_id": clip_id,
         "frame_index": frame_index,
         "timestamp_sec": round(timestamp_sec, 3),
         "view_label": view_label,
-        "yolo_prediction": yolo["prediction"],
-        "yolo_confidence": yolo["confidence"],
+        "yolo_prediction": pred,
+        "yolo_confidence": conf,
         "yolo_model_status": yolo.get("model_status", "UNKNOWN"),
         "model_loaded": yolo["model_loaded"],
         "opencv_visual_status": dip["visual_status"],
         "greenness_index": dip["greenness_index"],
         "green_pixel_percentage": dip["green_pixel_percentage"],
-        "lesion_percentage": dip["lesion_percentage"],
+        "lesion_percentage": max(dip["lesion_percentage"], hole_defol_pct if is_pest_chewed else 0.0),
+        "is_pest_chewed": is_pest_chewed,
+        "hole_boxes_count": len(hole_boxes),
+        "defoliation_pct": hole_defol_pct,
         "frame_shape": list(frame_bgr.shape),
     }
 
@@ -230,6 +268,7 @@ def extract_frames_from_clip(
     view_label: str,
     sample_fps: float = _DEFAULT_SAMPLE_FPS,
     progress_callback=None,
+    crop_type: str = "tomato",
 ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
     """
     Extract sampled frames from a video clip and run analysis on each.
@@ -240,6 +279,7 @@ def extract_frames_from_clip(
         view_label:        User-assigned view label (front/back/etc.).
         sample_fps:        Target frames per second to extract.
         progress_callback: Optional callable(processed, total) for progress updates.
+        crop_type:         Crop type identifier for crop-specific diagnostic routing.
 
     Returns:
         (observations, stats) where:
@@ -263,6 +303,7 @@ def extract_frames_from_clip(
             timestamp_sec=0.0,
             view_label=view_label,
             frame_bgr=img,
+            crop_type=crop_type,
         )
         return [obs], {
             "frames_extracted": 1,
@@ -314,6 +355,7 @@ def extract_frames_from_clip(
                     timestamp_sec=timestamp_sec,
                     view_label=view_label,
                     frame_bgr=frame,
+                    crop_type=crop_type,
                 )
                 observations.append(obs)
                 frames_extracted += 1
@@ -346,6 +388,7 @@ def process_clip(
     clip_meta: Dict[str, Any],
     sample_fps: float = _DEFAULT_SAMPLE_FPS,
     progress_callback=None,
+    crop_type: str = "tomato",
 ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
     """
     Process a clip metadata dict: extracts frames, runs DIP & YOLO (singleton),
@@ -354,6 +397,7 @@ def process_clip(
     clip_id = clip_meta["clip_id"]
     file_path = clip_meta.get("file_path", "")
     view_label = clip_meta.get("view_label", "unknown")
+    effective_crop = crop_type or clip_meta.get("crop_type", "tomato")
 
     observations, stats = extract_frames_from_clip(
         clip_id=clip_id,
@@ -361,6 +405,7 @@ def process_clip(
         view_label=view_label,
         sample_fps=sample_fps,
         progress_callback=progress_callback,
+        crop_type=effective_crop,
     )
 
     updated_meta = dict(clip_meta)

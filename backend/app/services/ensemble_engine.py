@@ -264,20 +264,15 @@ def run_ensemble_assessment(image_bgr: np.ndarray, crop_type: str = "tomato") ->
     is_healthy_pred = yolo_pred in ("healthy", "pepper_healthy", "potato_healthy")
 
     # Priority A: Foliar perforations & caterpillar/beetle defoliation
-    # Only override to pest_chewing_damage when classifier is NOT highly confident in a disease
-    # Confidence thresholds prevent false chewing detection from necrotic lesion voids:
-    #   yolo_conf >= 0.75 → strongly trust ML, never override regardless of defoliation
-    #   yolo_conf in [0.65, 0.75) → override only if defoliation is extremely high (>40%)
-    #   yolo_conf < 0.65 → ML is uncertain; use physical hole evidence if significant
-    confident_disease = (
-        yolo_pred not in ("healthy", "pepper_healthy", "potato_healthy", "no_supported_condition_detected")
-        and yolo_conf >= 0.65
-    )
-    very_confident_disease = confident_disease and yolo_conf >= 0.75
-    should_override_with_pest = (
-        is_pest_chewed and
-        not very_confident_disease and
-        not (confident_disease and hole_defol_pct < 40.0)
+    # Only override to pest_chewing_damage when classifier is NOT confident in a known fungal/bacterial disease
+    known_diseases = {
+        "early_blight", "late_blight", "septoria_leaf_spot", "bacterial_spot",
+        "pepper_bacterial_spot", "potato_early_blight", "potato_late_blight",
+        "leaf_mold", "spider_mites", "target_spot", "mosaic_virus", "yellow_leaf_curl"
+    }
+    is_known_disease = (yolo_pred in known_diseases) and (yolo_conf >= 0.40)
+    should_override_with_pest = is_pest_chewed and (
+        not is_known_disease or hole_defol_pct >= 25.0
     )
     if should_override_with_pest:
         matched_disease = "pest_chewing_damage"
@@ -293,22 +288,21 @@ def run_ensemble_assessment(image_bgr: np.ndarray, crop_type: str = "tomato") ->
 
     # Priority B: Crop-Specific Routing — Pepper / Chilli / Capsicum
     elif is_pepper:
-        _KNOWN_FUNGAL = {
-            "early_blight", "late_blight", "septoria_leaf_spot", "leaf_mold",
-            "spider_mites", "target_spot", "mosaic_virus", "yellow_leaf_curl",
-        }
-        if (("bacterial" in yolo_pred) or yolo_pred in ("bacterial_spot", "pepper_bacterial_spot")) and yolo_conf >= 0.30:
+        if (("bacterial" in yolo_pred) or yolo_pred in ("bacterial_spot", "pepper_bacterial_spot")) and yolo_conf >= 0.25:
             matched_disease = "pepper_bacterial_spot"
             is_diseased = True
-        elif yolo_pred in _KNOWN_FUNGAL and yolo_conf >= 0.35:
-            # These are tomato-trained labels; map to unclassified for pepper
-            matched_disease = "unclassified_foliar_damage"
+        elif yolo_pred in ("spider_mites", "mosaic_virus") and yolo_conf >= 0.30:
+            matched_disease = yolo_pred
             is_diseased = True
-        elif is_healthy_pred and yolo_conf >= 0.40 and optical_lesion_pct < 8.0:
+        elif yolo_pred in ("early_blight", "late_blight", "septoria_leaf_spot", "leaf_mold", "target_spot") and yolo_conf >= 0.30:
+            # Common pepper fungal leaf spot / anthracnose symptom
+            matched_disease = "pepper_bacterial_spot" if yolo_conf < 0.45 else yolo_pred
+            is_diseased = True
+        elif is_healthy_pred and yolo_conf >= 0.45 and optical_lesion_pct < 6.0:
             matched_disease = "pepper_healthy"
             is_diseased = False
-        elif optical_lesion_pct > 6.0:
-            matched_disease = "unclassified_foliar_damage"
+        elif optical_lesion_pct > 5.0:
+            matched_disease = "pepper_bacterial_spot"
             is_diseased = True
         else:
             matched_disease = "pepper_healthy"

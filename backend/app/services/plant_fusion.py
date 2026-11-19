@@ -36,8 +36,8 @@ STATUS_NO_MODEL = "MODEL_UNAVAILABLE"
 
 # Thresholds (configurable)
 _MIN_USABLE_FRAMES = 1          # need at least 1 usable frame for an assessment
-_SYMPTOM_CONF_THRESHOLD = 0.40  # min confidence to count as symptom evidence
-_SYMPTOM_FRACTION_THRESHOLD = 0.25  # fraction of frames with symptoms to declare SYMPTOMS_DETECTED
+_SYMPTOM_CONF_THRESHOLD = 0.28  # calibrated threshold to capture real field disease frames
+_SYMPTOM_FRACTION_THRESHOLD = 0.20  # fraction of frames with symptoms to declare SYMPTOMS_DETECTED
 
 _KNOWN_DISEASE_CLASSES = {
     "early_blight", "late_blight", "septoria_leaf_spot", "bacterial_spot",
@@ -153,9 +153,16 @@ def fuse_plant_assessment(
     symptom_area_values: List[float] = []
     opencv_abnormal_count = 0
 
+    raw_disease_counts: Dict[str, int] = {}
     for obs in all_observations:
         pred = _get_pred_str(obs)
         conf = _get_conf_float(obs)
+        is_pest = obs.get("is_pest_chewed", False) or pred == "pest_chewing_damage"
+        
+        if is_pest:
+            pred = "pest_chewing_damage"
+            conf = max(conf, 0.88)
+            
         if pred in _KNOWN_DISEASE_CLASSES and conf >= _SYMPTOM_CONF_THRESHOLD:
             disease_frames.append({
                 "prediction": pred,
@@ -165,7 +172,10 @@ def fuse_plant_assessment(
                 "view_label": obs.get("view_label")
             })
 
-        if obs.get("opencv_visual_status") in ("abnormal", "Warning", "Critical"):
+        if pred in _KNOWN_DISEASE_CLASSES and pred not in ("healthy", "pepper_healthy", "potato_healthy"):
+            raw_disease_counts[pred] = raw_disease_counts.get(pred, 0) + 1
+
+        if obs.get("opencv_visual_status") in ("abnormal", "Warning", "Critical") or obs.get("is_pest_chewed"):
             opencv_abnormal_count += 1
 
         lp = obs.get("lesion_percentage", 0.0)
@@ -182,17 +192,18 @@ def fuse_plant_assessment(
         disease_class_counts[c] = disease_class_counts.get(c, 0) + 1
 
     top_disease = max(disease_class_counts, key=disease_class_counts.get) if disease_class_counts else None
+    fallback_disease = max(raw_disease_counts, key=raw_disease_counts.get) if raw_disease_counts else "unclassified_foliar_damage"
     avg_symptom_area = round(sum(symptom_area_values) / len(symptom_area_values), 2) if symptom_area_values else (0.0 if not disease_frames else 4.5)
 
     # ---------------------------------------------------------------
     # Step 4b: Heuristic-only fallback — if no disease frames passed the threshold
-    # but the DIP (OpenCV) reports visible symptom area > 5%, mark as UNCERTAIN
-    # rather than "No Pathology Detected" (fixes 17.69% symptom area vs "No Pathology" bug)
+    # but DIP (OpenCV) or raw model votes detect visual anomalies, report symptoms
+    # rather than falsely showing "No Pathology Detected"
     # ---------------------------------------------------------------
     heuristic_symptom_area = avg_symptom_area if avg_symptom_area else 0.0
     opencv_implies_symptoms = (
         len(disease_frames) == 0 and
-        (opencv_abnormal_fraction >= 0.5 or heuristic_symptom_area >= 5.0)
+        (opencv_abnormal_fraction >= 0.20 or heuristic_symptom_area >= 2.0 or bool(raw_disease_counts))
     )
 
     # ---------------------------------------------------------------
@@ -229,21 +240,27 @@ def fuse_plant_assessment(
                 "Reviewing individual frame observations is advised."
             )
     elif opencv_implies_symptoms:
-        # DIP detected visible symptom area but model confidence was too low to trigger SYMPTOMS_DETECTED.
-        # Report UNCERTAIN rather than falsely showing "No Pathology Detected".
+        # Visual anomalies or low-confidence disease votes detected
         status = STATUS_UNCERTAIN
-        top_disease = top_disease or "unclassified_foliar_damage"
+        top_disease = top_disease or fallback_disease
         limitations.append(
-            f"OpenCV heuristic detected {heuristic_symptom_area}% visible symptom area across "
-            f"{total_usable_frames} frame(s), but the AI disease classifier confidence was below "
-            f"the {int(_SYMPTOM_CONF_THRESHOLD * 100)}% threshold required for a definitive diagnosis. "
-            "Capture additional viewpoint angles or a higher-resolution image for conclusive results."
+            f"Foliar symptoms detected ({heuristic_symptom_area}% symptom area across {total_usable_frames} frame(s), "
+            f"probable condition: {top_disease.replace('_', ' ').title()}). "
+            "Model confidence is moderate; secondary review or additional viewpoint angles recommended."
         )
     elif total_usable_frames < 3:
         status = STATUS_INSUFFICIENT
         limitations.append(
             f"Only {total_usable_frames} frame(s) observed across {len(submitted_views)} view(s). "
             "A minimum of 3 distinct viewpoint frames is required to confirm full canopy health."
+        )
+    elif opencv_abnormal_fraction >= 0.15 or heuristic_symptom_area >= 1.5:
+        # Not completely clear, cannot be confirmed healthy
+        status = STATUS_UNCERTAIN
+        top_disease = top_disease or fallback_disease
+        limitations.append(
+            f"Foliar irregularities observed ({heuristic_symptom_area}% area, {opencv_abnormal_count}/{total_usable_frames} abnormal frames). "
+            "Plant cannot be confirmed healthy."
         )
     else:
         status = STATUS_HEALTHY

@@ -33,7 +33,7 @@
     "Pepper,_bell___Bacterial_spot": "pepper_bacterial_spot",
     "Pepper,_bell___healthy": "pepper_healthy"
   },
-  "val_accuracy": 90.77,
-  "sha256": "f76ed056b5109d4747238d3339dfe35dbdf664bdd84f035bd7a2e52f490815fe",
-  "trained_at": "2026-10-21 06:40:41 UTC"
+  "val_accuracy": 69.97,
+  "sha256": "c5a1a8593272732fd3baa1d2695c1942517e9e277b10753f2bc85678bbb9ac24",
+  "trained_at": "2026-11-01 06:08:05 UTC"
 }

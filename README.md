@@ -85,6 +85,7 @@ npm.cmd run build
 
 ## Documentation Index
 
+- [Knowledge Transfer Guide](file:///docs/KNOWLEDGE_TRANSFER.md) (Complete Architecture, Ensemble Guide & Layman Explanations)
 - [Production Readiness Audit](file:///docs/PRODUCTION_READINESS_AUDIT.md)
 - [Dataset Catalog & Governance](file:///docs/DATASET_CATALOG.md)
 - [Model Card](file:///docs/MODEL_CARD.md)

@@ -288,61 +288,64 @@ def detect_leaf_perforations_and_pest_damage(
     hole_boxes: List[Dict[str, Any]] = []
     total_hole_area = 0.0
 
-    # Minimum hole area: relative to image size (≥0.06% of image area), but at least 70px
-    min_hole_px = max(70, int(h * w * 0.0006))
-    # Holes larger than 20% of image area are likely segmentation artifacts, not real holes
-    max_hole_px = h * w * 0.20
+    # Minimum hole area: real insect feeding holes are at least 120px or 0.12% of image area
+    min_hole_px = max(120, int(h * w * 0.0012))
+    # Holes larger than 15% of image area are background voids, not insect holes
+    max_hole_px = int(h * w * 0.15)
 
+    interior_holes_count = 0
     if hierarchy is not None:
         for i, h_info in enumerate(hierarchy[0]):
             # If h_info[3] >= 0, this contour is an interior hole enclosed completely by plant tissue
             if h_info[3] >= 0:
                 area = cv2.contourArea(contours[i])
                 if min_hole_px <= area <= max_hole_px:
-                    # Additional filter: single large irregular blob is a necrotic lesion, not a hole
                     perim = cv2.arcLength(contours[i], True)
                     circularity = (4 * 3.14159 * area) / (perim * perim + 1e-6)
-                    # Large (>5% img) AND irregular (circ < 0.15) = likely a necrotic lesion void, skip
-                    if area > (h * w * 0.05) and circularity < 0.15:
-                        continue
-                    x, y, bw, bh = cv2.boundingRect(contours[i])
-                    total_hole_area += area
-                    hole_boxes.append({
-                        "box": [float(x), float(y), float(x + bw), float(y + bh)],
-                        "norm_box": [
-                            round(y / max(h, 1), 4),
-                            round(x / max(w, 1), 4),
-                            round((y + bh) / max(h, 1), 4),
-                            round((x + bw) / max(w, 1), 4),
-                        ],
-                        "label": "pest_feeding_hole",
-                        "raw_label": "Pest Feeding Hole",
-                        "confidence": 0.88,
-                        "area_px": int(area),
-                    })
+                    # Filter out long thin cracks, leaf veins, or irregular gaps (circularity must be >= 0.16)
+                    if circularity >= 0.16:
+                        x, y, bw, bh = cv2.boundingRect(contours[i])
+                        total_hole_area += area
+                        interior_holes_count += 1
+                        hole_boxes.append({
+                            "box": [float(x), float(y), float(x + bw), float(y + bh)],
+                            "norm_box": [
+                                round(y / max(h, 1), 4),
+                                round(x / max(w, 1), 4),
+                                round((y + bh) / max(h, 1), 4),
+                                round((x + bw) / max(w, 1), 4),
+                            ],
+                            "label": "pest_feeding_hole",
+                            "raw_label": "Pest Feeding Hole",
+                            "confidence": 0.88,
+                            "area_px": int(area),
+                            "type": "interior",
+                        })
 
-    # 2. Defoliation margin bites & notches from the leaf blade convex envelope
+    # 2. Defoliation margin bites & notches: ONLY for a single isolated leaf lamina
+    # Compound leaves (e.g. tomato/potato) naturally have spaces between leaflets; never treat those as bites!
     ext_contours, _ = cv2.findContours(plant_clean, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    major_leaves = [c for c in ext_contours if cv2.contourArea(c) > (h * w * 0.04)]
+    major_leaves = [c for c in ext_contours if cv2.contourArea(c) > (h * w * 0.06)]
     total_blade_area = sum(cv2.contourArea(c) for c in major_leaves) if major_leaves else float(np.sum(plant_clean > 0))
 
-    if major_leaves:
+    if len(major_leaves) == 1:
+        c = major_leaves[0]
+        hull = cv2.convexHull(c)
         leaf_solid = np.zeros((h, w), dtype=np.uint8)
-        for c in major_leaves:
-            hull = cv2.convexHull(c)
-            cv2.drawContours(leaf_solid, [hull], -1, 255, -1)
+        cv2.drawContours(leaf_solid, [hull], -1, 255, -1)
 
         missing = cv2.bitwise_and(leaf_solid, cv2.bitwise_not(plant_clean))
-        missing = cv2.morphologyEx(missing, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5)))
+        missing = cv2.morphologyEx(missing, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9)))
         bite_contours, _ = cv2.findContours(missing, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-        for c in bite_contours:
-            area = cv2.contourArea(c)
-            if 40 <= area <= (h * w * 0.25):
-                x, y, bw, bh = cv2.boundingRect(c)
-                # Deduplicate if overlapping an interior hole
+        
+        # Valid margin bites must be large, deep, and few in number (<= 5)
+        valid_bites = [bc for bc in bite_contours if cv2.contourArea(bc) >= max(200, int(h * w * 0.003))]
+        if 1 <= len(valid_bites) <= 5:
+            for bc in valid_bites:
+                area = cv2.contourArea(bc)
+                x, y, bw, bh = cv2.boundingRect(bc)
                 is_dup = any(
-                    abs(x - hb["box"][0]) < 12 and abs(y - hb["box"][1]) < 12 for hb in hole_boxes
+                    abs(x - hb["box"][0]) < 15 and abs(y - hb["box"][1]) < 15 for hb in hole_boxes
                 )
                 if not is_dup:
                     total_hole_area += area
@@ -358,15 +361,18 @@ def detect_leaf_perforations_and_pest_damage(
                         "raw_label": "Pest Chewing Defoliation",
                         "confidence": 0.85,
                         "area_px": int(area),
+                        "type": "margin",
                     })
 
     defoliation_pct = round((total_hole_area / max(total_blade_area, 1)) * 100.0, 2)
-    # Count only significant (≥80px) holes for the is_pest_chewed determination to avoid false
-    # positives from tiny necrotic pinholes on disease lesions
-    significant_holes = [hb for hb in hole_boxes if hb["area_px"] >= 80]
-    is_pest_chewed = (len(significant_holes) >= 2 and defoliation_pct >= 4.0) or (
-        len(significant_holes) >= 1 and defoliation_pct >= 10.0
+    # Genuine pest chewing requires either:
+    # A. At least 2 interior holes with defoliation >= 2.5%
+    # B. At least 1 significant hole/bite with defoliation >= 7.0%
+    is_pest_chewed = (interior_holes_count >= 2 and defoliation_pct >= 2.5) or (
+        len(hole_boxes) >= 1 and defoliation_pct >= 7.0
     )
+
+    return is_pest_chewed, hole_boxes, defoliation_pct
 
     return is_pest_chewed, hole_boxes, defoliation_pct
 

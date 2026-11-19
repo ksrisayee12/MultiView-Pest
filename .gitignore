@@ -69,6 +69,12 @@ Thumbs.db
 .vscode/settings.json
 *.swp
 
+# Archives and zip files
+*.zip
+*.tar.gz
+*.tgz
+*.rar
+
 # Master prompt (local reference only)
 MultiView_AgriHealth_Antigravity_Master_Prompt.md
 
